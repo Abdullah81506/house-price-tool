@@ -25,16 +25,16 @@ recorded at DC/FBR valuation rates, which are deliberately below market for tax 
 and much of the market is cash. So the ground truth that Zillow's Zestimate is built on
 simply does not exist here.
 
-Zameen publishes an area-level price index — "1-Kanal houses in DHA Phase 7 average
-X" — but nothing that judges a *specific* listing. This tool does that, and shows the
+Zameen publishes an area-level price index, "1-Kanal houses in DHA Phase 7 average
+X", but nothing that judges a *specific* listing. This tool does that, and shows the
 comparable listings behind every number so the verdict is checkable rather than
 authoritative.
 
 ## What it does
 
-- **Paste a link** — scrapes the listing, compares it to similar properties, gives a verdict
-- **Enter details** — area, type, size, beds, baths; shows the typical range without a listing
-- **Browse** — the listings currently asking most and least relative to their area
+- **Paste a link** - scrapes the listing, compares it to similar properties, gives a verdict
+- **Enter details** - area, type, size, beds, baths; shows the typical range without a listing
+- **Browse** - the listings currently asking most and least relative to their area
 
 ## How it works
 
@@ -50,20 +50,20 @@ app.py                  → Gradio front end
 
 **Data:** 13,203 cleaned listings (10,000 houses, 3,216 flats) across 221 Lahore areas.
 
-**Model:** XGBoost regression on log-transformed price. 29 features — size, beds, baths,
+**Model:** XGBoost regression on log-transformed price. 29 features; size, beds, baths,
 area, property type, floor, six title keyword flags, and seventeen description-derived
 features.
 
 **Verdict logic:** a listing is flagged when its asking price falls outside the
 15th–85th percentile of genuinely comparable listings (same area, same property type,
 within ±30% size), plus a 5% margin. That threshold was chosen by measuring the flag
-rate across 600 random listings — it flags ~18%, split evenly between over and under.
+rate across 600 random listings, it flags ~18%, split evenly between over and under.
 
 ## What I measured
 
 ### The model is close to the ceiling for its features
 
-I computed the error a *perfect* model would still make — one that always predicted each
+I computed the error a *perfect* model would still make, one that always predicted each
 comparable group's exact median price:
 
 | | |
@@ -71,8 +71,8 @@ comparable group's exact median price:
 | Perfect model's median error | **9.1%** |
 | This model's median error | **~10.5%** |
 
-Within any (area, size, type) group, actual asking prices vary enormously — DHA Phase 7
-houses of 14–26 marla range from 5.75 to 25 crore. That spread is driven by construction
+Within any (area, size, type) group, actual asking prices vary enormously, DHA Phase 7
+houses of 14-26 marla range from 5.75 to 25 crore. That spread is driven by construction
 quality, age, finishing and seller motivation, none of which are in the data. It is
 unlearnable from these features, by any model.
 
@@ -101,8 +101,8 @@ below is judged on that subset, not the headline number.
 | Correcting area-name parsing | no measurable change |
 | Scraping detail-page amenities | **no measurable change** |
 
-The amenities scrape took 11 hours and produced nothing. `built_in_year` — the feature I
-expected most from — turned out to be near-constant: 76.8% of listings with the field are
+The amenities scrape took 11 hours and produced nothing. `built_in_year`, the feature I
+expected most from, turned out to be near-constant: 76.8% of listings with the field are
 2024 or later, so it duplicated an existing "is new" flag. Feature importance ranked it
 at 0.006 against `size_marla` at 0.75.
 
@@ -129,5 +129,5 @@ python app.py            # Gradio UI on :7860
 uvicorn main:app --reload  # or the FastAPI version on :8000
 ```
 
-To rebuild from scratch: `scraper.py` → `scrape_details_bulk.py` → `clean_data.py` →
-`train.py` → `precompute_deviations.py`.
+To rebuild from scratch: `scraper.py` -> `scrape_details_bulk.py` -> `clean_data.py` ->
+`train.py` -> `precompute_deviations.py`.
