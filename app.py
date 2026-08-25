@@ -153,7 +153,7 @@ def browse(position, area):
     return header + "".join(rows)
 
 
-with gr.Blocks(css=CSS, title="Is this Lahore listing priced like its neighbours?") as demo:
+with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as demo:
     gr.Markdown(
         "# Is this listing priced like its neighbours?\n"
         "Compares any Lahore property against real Zameen listings of similar size "
@@ -196,4 +196,4 @@ with gr.Blocks(css=CSS, title="Is this Lahore listing priced like its neighbours
     )
 
 if __name__ == "__main__":
-    demo.launch()
+    demo.launch(css=CSS, ssr_mode=False)
