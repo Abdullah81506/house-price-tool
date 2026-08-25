@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.idea/
+raw_backup/
+listings_houses.csv
+listings_flats.csv
+detail_features.csv
+listing_images.csv
+pilot_details_v2.csv
