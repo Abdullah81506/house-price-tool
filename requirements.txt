@@ -6,3 +6,4 @@ numpy==2.5.1
 xgboost==3.3.0
 requests==2.34.2
 beautifulsoup4==4.15.0
+gradio
