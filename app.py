@@ -5,6 +5,16 @@ from main import (
     ListingRequest, EstimateRequest, KNOWN_AREAS,
 )
 
+try:
+    import spaces
+
+    @spaces.GPU
+    def _gpu_stub():
+        """ZeroGPU requires at least one GPU-decorated function. Never called."""
+        return "ok"
+except ImportError:
+    pass          # not running on Hugging Face
+
 CSS = """
 .gradio-container {max-width: 720px !important}
 .card, .card *, .listing, .listing *, .msg, .msg * {color:#12262E !important}
