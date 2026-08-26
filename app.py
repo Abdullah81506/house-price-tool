@@ -118,6 +118,7 @@ def card_html(d):
 
 
 def check_url(url):
+    print("RUN: check_url", flush=True)
     if not url or "zameen.com" not in url:
         return "<div class='msg'>Paste a zameen.com listing link.</div>", []
     d = predict_price(ListingRequest(url=url.strip()))
@@ -125,6 +126,7 @@ def check_url(url):
 
 
 def check_details(area, ptype, size, beds, baths):
+    print("RUN: check_url", flush=True)
     if not area:
         return "<div class='msg'>Pick an area from the list.</div>"
     if not size:
@@ -137,6 +139,7 @@ def check_details(area, ptype, size, beds, baths):
 
 
 def browse(position, area):
+    print("RUN: check_url", flush=True)
     pos = "above" if position.startswith("Asking more") else "below"
     d = browse_listings(position=pos, area=(area or None), limit=15)
     if d.get("error") or not d.get("listings"):
