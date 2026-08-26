@@ -192,6 +192,10 @@ def predict_price(request: ListingRequest):
     property_type = safe_property_type(raw["property_type"])
     floor = extract_floor(raw["title"])
     title_features = extract_title_features(raw["title"])
+    if asking_price is None or size_marla is None:
+        return {"error": "That page doesn't look like a property listing — "
+                         "it may be a project or development page. Try a link "
+                         "to a specific property."}
 
     row = pd.DataFrame([{
         "size_marla": size_marla,
@@ -211,6 +215,8 @@ def predict_price(request: ListingRequest):
     row["area"] = pd.Categorical(row["area"], categories=KNOWN_AREAS)
     row["property_type"] = pd.Categorical(row["property_type"], categories=KNOWN_PROPERTY_TYPES)
     row["floor"] = pd.to_numeric(row["floor"], errors="coerce")
+    for c in ["size_marla", "beds", "baths"]:
+        row[c] = pd.to_numeric(row[c], errors="coerce")
 
     predicted_price = float(np.expm1(model.predict(row)[0]))
 
