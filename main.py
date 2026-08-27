@@ -187,10 +187,10 @@ def get_comparables(area, property_type, size_marla, min_comps=5, block=None, ur
         ],
     }
 
-from fastapi.responses import FileResponse
-@app.get("/")
-def read_root():
-    return FileResponse("index.html")
+# from fastapi.responses import FileResponse
+# @app.get("/")
+# def read_root():
+#     return FileResponse("index.html")
 
 
 @app.post("/predict")

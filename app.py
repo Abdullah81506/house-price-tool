@@ -68,9 +68,12 @@ def card_html(d):
         return f"<div class='msg'>{d['error']}</div>"
 
     c = d.get("comparables")
+    scope_label = d['area']
+    if c and c.get("scope") == "block" and c.get("block"):
+        scope_label = f"{d['area']}, {c['block']}"
     colour = COLOUR.get(d.get("position"), "#33566B")
     head = (f"<p class='title'>{d.get('title') or ''}</p>"
-            f"<p class='meta'>{d['area']} · {d['property_type']} · {d['size_marla']} marla</p>")
+            f"<p class='meta'>{scope_label} · {d['property_type']} · {d['size_marla']} marla</p>")
 
     if not c:
         return (f"<div class='card'><div class='pad'>{head}"
@@ -90,7 +93,7 @@ def card_html(d):
         lede = (f"<p class='lede'><b>{pkr(ask)}</b> is "
                 f"<span class='hl' style='color:{colour}'>{word}</span> {tail}.</p>"
                 f"<p class='lede-2'>That's {pct}% {dirn} than the {pkr(c['typical'])} typical "
-                f"for {d['size_marla']} marla {d['property_type'].lower()}s in {d['area']}.</p>")
+                f"for {d['size_marla']} marla {d['property_type'].lower()}s in {scope_label}.</p>")
 
     examples = "".join(
         f"<a class='comp' href='{e['url']}' target='_blank'>"
@@ -113,7 +116,7 @@ def card_html(d):
             + (f"<div class='proof'><h4>The closest listings this is measured against</h4>{examples}</div>"
                if examples else "")
             + f"<p class='note'>From {c['count']} listings of {c['size_range_marla'][0]}–"
-              f"{c['size_range_marla'][1]} marla in {d['area']}.{thin} The model estimate is "
+              f"{c['size_range_marla'][1]} marla in {scope_label}.{thin} The model estimate is "
               f"usually within about 15%; the range is the more reliable figure.</p></div>")
 
 
