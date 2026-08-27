@@ -6,7 +6,8 @@ from bs4 import BeautifulSoup
 import re
 import pandas as pd
 import numpy as np
-from clean_data import parse_size, parse_price, extract_area, extract_title_features, extract_floor
+from clean_data import parse_size, parse_price, extract_title_features, extract_floor
+from location_parser import split_location, MIN_BLOCK_COMPS
 from detail_parser import DESC_KEYWORDS
 
 app = FastAPI()
@@ -128,9 +129,10 @@ def build_desc_features(description):
         feats["desc_" + key] = 1 if any(w in low for w in words) else 0
     return feats
 
-
-def get_comparables(area, property_type, size_marla, min_comps=5):
-    """Actual listings of similar size, in the same area and of the same type."""
+def get_comparables(area, property_type, size_marla, min_comps=5, block=None, url=None):
+    """Actual listings of similar size, in the same area and of the same type.
+    If block is given and the block pool is large enough, comparables are
+    narrowed to that block. Otherwise falls back to area level."""
     if size_marla is None or area == "Other":
         return None
     lo, hi = size_marla * 0.7, size_marla * 1.3
@@ -140,6 +142,16 @@ def get_comparables(area, property_type, size_marla, min_comps=5):
         & (COMPS['size_marla'] >= lo)
         & (COMPS['size_marla'] <= hi)
     ]
+    if url:
+        c = c[c['url'] != url]
+
+    scope = "area"
+    if block:
+        b = c[c['block'] == block]
+        if len(b) >= MIN_BLOCK_COMPS:
+            c = b
+            scope = "block"
+
     if len(c) >= 20:
         ppm = c['price_numeric'] / c['size_marla']
         lo_ppm, hi_ppm = ppm.quantile(0.02), ppm.quantile(0.98)
@@ -147,11 +159,21 @@ def get_comparables(area, property_type, size_marla, min_comps=5):
     if len(c) < min_comps:
         return None
     p = c['price_numeric']
-    nearest = c.reindex(
-        (c['size_marla'] - size_marla).abs().sort_values().index
+
+    # examples come from the block whenever one exists, even at area scope
+    ex_pool = c
+    if block and scope == "area":
+        in_block = c[c['block'] == block]
+        if len(in_block) > 0:
+            ex_pool = in_block
+
+    nearest = ex_pool.reindex(
+        (ex_pool['size_marla'] - size_marla).abs().sort_values().index
     ).head(5)
     return {
         "count": int(len(c)),
+        "scope": scope,
+        "block": block if scope == "block" else None,
         "low": float(p.quantile(0.15)),
         "typical": float(p.median()),
         "high": float(p.quantile(0.85)),
@@ -188,7 +210,8 @@ def predict_price(request: ListingRequest):
     size_marla = parse_size(raw["size"])
     beds = parse_number(raw["beds"])
     baths = parse_number(raw["baths"])
-    area = safe_area(extract_area(raw["location"]))
+    raw_area, block = split_location(raw["location"])
+    area = safe_area(raw_area)
     property_type = safe_property_type(raw["property_type"])
     floor = extract_floor(raw["title"])
     title_features = extract_title_features(raw["title"])
@@ -221,7 +244,7 @@ def predict_price(request: ListingRequest):
     predicted_price = float(np.expm1(model.predict(row)[0]))
 
     # --- comparables and verdict ---
-    comps = get_comparables(area, property_type, size_marla)
+    comps = get_comparables(area, property_type, size_marla, block=block, url=request.url)
 
     if comps is None:
         verdict = "Not enough comparable listings to judge this one."
@@ -259,6 +282,7 @@ def predict_price(request: ListingRequest):
         "position": position,
         "confidence": confidence,
         "scraped_raw": raw,
+        "block": block,
     }
 
 
