@@ -1,5 +1,6 @@
 import pandas as pd
 import re
+from location_parser import extract_area, extract_block
 
 def parse_price(price_text):
     if not price_text:
@@ -31,12 +32,12 @@ def parse_size(size_text):  # to convert size in one unit only
         number /= 272.25
     return number
 
-def extract_area(location_text):  # to extract the broader area from location
-    if not location_text:
-        return 'Other'
-    text = location_text.split(',')[0]
-    text = text.split(' - ')[0]
-    return ' '.join(text.split())
+# def extract_area(location_text):  # to extract the broader area from location
+#     if not location_text:
+#         return 'Other'
+#     text = location_text.split(',')[0]
+#     text = text.split(' - ')[0]
+#     return ' '.join(text.split())
 
 def extract_title_features(title):
     if not title:
@@ -97,6 +98,7 @@ if __name__ == '__main__':
     df['size_marla'] = df['size'].apply(parse_size)
     df['best_location'] = df['detail_location'].fillna(df['location'])
     df['area'] = df['best_location'].apply(extract_area)
+    df['block'] = df['best_location'].apply(extract_block)
     df[['is_new', 'is_furnished', 'is_luxury', 'has_basement', 'is_corner', 'is_commercial']] = \
     df['title'].apply(extract_title_features)
     df['floor'] = df['title'].apply(extract_floor)
