@@ -12,9 +12,7 @@ import pandas as pd
 import xgboost as xgb
 
 from main import COMPS, get_comparables
-
-MARGIN = 0.05
-MAX_DEVIATION = 1.0        # >100% off is almost always bad data, not a real outlier
+from config import MARGIN, MAX_DEVIATION
 
 df = COMPS.copy()
 print(f"{len(df):,} listings (installment/commercial already excluded)")

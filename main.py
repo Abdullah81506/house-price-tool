@@ -7,8 +7,9 @@ import re
 import pandas as pd
 import numpy as np
 from clean_data import parse_size, parse_price, extract_title_features, extract_floor
-from location_parser import split_location, MIN_BLOCK_COMPS
+from location_parser import split_location
 from detail_parser import DESC_KEYWORDS
+from config import BAND_LO, BAND_HI, MARGIN, MIN_COMPS, MIN_BLOCK_COMPS
 
 app = FastAPI()
 
@@ -147,7 +148,7 @@ def build_desc_features(description):
         feats["desc_" + key] = 1 if any(w in low for w in words) else 0
     return feats
 
-def get_comparables(area, property_type, size_marla, min_comps=5, block=None, url=None):
+def get_comparables(area, property_type, size_marla, min_comps=MIN_COMPS, block=None, url=None):
     """Actual listings of similar size, in the same area and of the same type.
     If block is given and the block pool is large enough, comparables are
     narrowed to that block. Otherwise falls back to area level."""
@@ -192,9 +193,9 @@ def get_comparables(area, property_type, size_marla, min_comps=5, block=None, ur
         "count": int(len(c)),
         "scope": scope,
         "block": block if scope == "block" else None,
-        "low": float(p.quantile(0.15)),
+        "low": float(p.quantile(BAND_LO)),
         "typical": float(p.median()),
-        "high": float(p.quantile(0.85)),
+        "high": float(p.quantile(BAND_HI)),
         "min": float(p.min()),
         "max": float(p.max()),
         "size_range_marla": [round(lo, 1), round(hi, 1)],
@@ -272,11 +273,10 @@ def predict_price(request: ListingRequest):
         confidence = "none"
         position = None
     else:
-        margin = 0.05
-        if asking_price < comps["low"] * (1 - margin):
+        if asking_price < comps["low"] * (1 - MARGIN):
             verdict = "Below the typical range for this area and size."
             position = "below"
-        elif asking_price > comps["high"] * (1 + margin):
+        elif asking_price > comps["high"] * (1 + MARGIN):
             verdict = "Above the typical range for this area and size."
             position = "above"
         else:

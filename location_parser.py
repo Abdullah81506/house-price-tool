@@ -2,7 +2,6 @@
 """Single source of truth for area and block. Imported by clean_data.py and main.py."""
 import re
 
-MIN_BLOCK_COMPS = 10   # set by measurement: the 5-9 pool bucket failed coverage retention
 
 
 def normalise(s):
