@@ -2,7 +2,7 @@
 import gradio as gr
 from main import (
     predict_price, estimate_price, browse_listings,
-    ListingRequest, EstimateRequest, KNOWN_AREAS, BROWSE_AREAS
+    ListingRequest, EstimateRequest, KNOWN_AREAS, BROWSE_AREAS, COMPS
 )
 
 try:
@@ -123,9 +123,10 @@ def card_html(d):
 def check_url(url):
     print("RUN: check_url", flush=True)
     if not url or "zameen.com" not in url:
-        return "<div class='msg'>Paste a zameen.com listing link.</div>", []
+        return "<div class='msg'>Paste a zameen.com listing link.</div>", gr.update(visible=False)
     d = predict_price(ListingRequest(url=url.strip()))
-    return card_html(d), (d.get("images") or [])
+    images = d.get("images") or []
+    return card_html(d), gr.update(value=images, visible=bool(images))
 
 
 def check_details(area, ptype, size, beds, baths):
@@ -173,14 +174,14 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
     gr.Markdown(
         "# Is this listing priced like its neighbours?\n"
         "Compares any Lahore property against real Zameen listings of similar size "
-        "in the same area. Built on 13,203 listings."
+        f"in the same area. Built on {len(COMPS):,} listings."
     )
 
     with gr.Tab("Paste a link"):
         url_in = gr.Textbox(label="Zameen listing link",
                             placeholder="https://www.zameen.com/Property/...")
         url_btn = gr.Button("Check this listing", variant="primary")
-        url_gallery = gr.Gallery(label="Photos", columns=4, height=260, show_label=False)
+        url_gallery = gr.Gallery(label="Photos", columns=4, height=260,show_label=False, visible=False)
         url_out = gr.HTML()
         url_btn.click(check_url, url_in, [url_out, url_gallery])
 

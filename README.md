@@ -48,7 +48,9 @@ main.py                 → FastAPI: /predict, /estimate, /listings, /areas
 app.py                  → Gradio front end
 ```
 
-**Data:** 13,203 cleaned listings (10,000 houses, 3,216 flats) across 221 Lahore areas.
+**Data:** 13,008 cleaned listings (9,933 houses, 3,075 flats) across 221 Lahore areas.
+12,305 of these form the comparables pool; installment-plan and commercial listings are
+excluded because their quoted price isn't an outright sale price.
 
 **Model:** XGBoost regression on log-transformed price. 29 features; size, beds, baths,
 area, property type, floor, six title keyword flags, and seventeen description-derived
