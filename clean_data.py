@@ -136,6 +136,9 @@ if __name__ == '__main__':
     # If suspect has rows and you confirm it's the same kind of bug, drop by its real index, e.g
     # df = df.drop(index=suspect.index)
     df = df.drop_duplicates()
+    before = len(df)
+    df = df.drop_duplicates(subset=['url'], keep='first')
+    print(f"dropped {before - len(df)} rows with repeated urls")
     df.to_csv('listings_cleaned.csv', index=False)
     print("Saved listings_cleaned.csv")
     print(df[df['property_type'] == 'Flat']['floor'].isnull().sum())
