@@ -18,12 +18,20 @@ model = xgb.XGBRegressor()
 model.load_model('house_price_model.json')
 
 # --- comparables data, loaded once at startup ---
+PRICE_NOT_REAL = ['installment', 'instalment', 'booking', 'on easy', 'down payment']
+
 COMPS = pd.read_csv('listings_cleaned.csv')
 COMPS = COMPS[
     COMPS['price_numeric'].notna()
     & COMPS['size_marla'].notna()
     & (COMPS['size_marla'] > 0)
 ]
+_before = len(COMPS)
+_title_low = COMPS['title'].astype(str).str.lower()
+_installment = _title_low.apply(lambda t: any(w in t for w in PRICE_NOT_REAL))
+COMPS = COMPS[~_installment & (COMPS['is_commercial'] != 1)]
+print(f"excluded {_before - len(COMPS):,} installment/commercial listings", flush=True)
+
 try:
     DEVIATIONS = pd.read_csv('listing_deviations.csv')
     print(f"loaded {len(DEVIATIONS):,} precomputed deviations", flush=True)
@@ -49,6 +57,9 @@ def safe_area(area_value):
 def safe_property_type(value):
     return value if value in KNOWN_PROPERTY_TYPES else "House"
 
+def is_installment(title):
+    t = str(title or "").lower()
+    return any(w in t for w in PRICE_NOT_REAL)
 
 def scrape_single_listing(url):
     try:
@@ -213,6 +224,11 @@ def predict_price(request: ListingRequest):
         return {"error": "That page doesn't look like a property listing — "
                          "it may be a project or development page. Try a link "
                          "to a specific property."}
+
+    if is_installment(raw["title"]):
+        return {"error": "This listing quotes an installment or booking plan rather "
+                         "than an outright sale price, so it can't be compared "
+                         "against the sale listings in this dataset."}
 
     row = pd.DataFrame([{
         "size_marla": size_marla,
