@@ -2,7 +2,7 @@
 import gradio as gr
 from main import (
     predict_price, estimate_price, browse_listings,
-    ListingRequest, EstimateRequest, KNOWN_AREAS,
+    ListingRequest, EstimateRequest, KNOWN_AREAS, BROWSE_AREAS
 )
 
 try:
@@ -200,8 +200,9 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
         with gr.Row():
             pos_in = gr.Radio(["Asking more than their area", "Asking less than their area"],
                               value="Asking more than their area", label="Show listings")
-            barea_in = gr.Dropdown(choices=[""] + KNOWN_AREAS, value="",
+            barea_in = gr.Dropdown(choices=[""] + BROWSE_AREAS, value="",
                                    label="Area (blank = all)", filterable=True)
+
         br_btn = gr.Button("Show listings", variant="primary")
         br_out = gr.HTML()
         br_btn.click(browse, [pos_in, barea_in], br_out)

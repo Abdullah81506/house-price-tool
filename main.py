@@ -41,6 +41,13 @@ except FileNotFoundError:
 
 # --- areas come from the training data itself, so they can never go stale ---
 KNOWN_AREAS = sorted(COMPS['area'].dropna().unique().tolist())
+if DEVIATIONS.empty:
+    BROWSE_AREAS = []
+else:
+    _flagged = DEVIATIONS[(DEVIATIONS['position'] != 'within')
+                          & (DEVIATIONS['confidence'] == 'high')]
+    BROWSE_AREAS = sorted(_flagged['area'].dropna().unique().tolist())
+print(f"{len(BROWSE_AREAS)} areas have high-confidence flagged listings", flush=True)
 KNOWN_PROPERTY_TYPES = ['House', 'Flat']
 
 print(f"loaded {len(COMPS):,} comparables across {len(KNOWN_AREAS)} areas", flush=True)
