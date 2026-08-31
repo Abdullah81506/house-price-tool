@@ -85,9 +85,16 @@ before_cap = len(out)
 # --- extreme deviations are price typos far more often than real outliers ---
 out = out[out['deviation'] <= MAX_DEVIATION]
 
-if os.path.exists('listing_images.csv'):
-    out = out.merge(pd.read_csv('listing_images.csv'), on='url', how='left')
-    print(f"merged photos: {out['image'].notna().sum():,}")
+imgs = []
+for f in ('listings_houses.csv', 'listings_flats.csv'):
+    if os.path.exists(f):
+        d = pd.read_csv(f, usecols=['url', 'cover_image'])
+        imgs.append(d)
+if imgs:
+    imgs = pd.concat(imgs, ignore_index=True).dropna(subset=['cover_image'])
+    imgs = imgs.drop_duplicates(subset=['url']).rename(columns={'cover_image': 'image'})
+    out = out.merge(imgs, on='url', how='left')
+    print(f"merged photos: {out['image'].notna().sum():,} of {len(out):,}")
 
 out.to_csv('listing_deviations.csv', index=False)
 
