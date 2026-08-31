@@ -92,6 +92,14 @@ def card_html(d):
     ask = d.get("asking_price")
     if ask is None:
         lede = f"<p class='lede'>Similar properties here ask <b>{pkr(c['typical'])}</b> on average.</p>"
+    elif d.get("implausible"):
+        # Far below everything comparable: almost always a typo or a property
+        # that is not comparable. Show the figures, but do not call it a bargain.
+        lede = (f"<p class='lede'><b>{pkr(ask)}</b> is far below everything "
+                f"comparable nearby.</p>"
+                f"<p class='lede-2'>That usually means a typo in the listing, or a "
+                f"property that is not comparable, such as a plot rather than a "
+                f"house. The figures below are real; judge for yourself.</p>")
     else:
         pct = round(abs(ask - c["typical"]) / c["typical"] * 100)
         dirn = "more" if ask >= c["typical"] else "less"

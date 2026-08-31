@@ -9,7 +9,7 @@ import numpy as np
 from clean_data import parse_size, parse_price, extract_title_features, extract_floor
 from location_parser import split_location
 from detail_parser import DESC_KEYWORDS
-from config import BAND_LO, BAND_HI, MARGIN, MIN_COMPS, MIN_BLOCK_COMPS
+from config import BAND_LO, BAND_HI, MARGIN, MIN_COMPS, MIN_BLOCK_COMPS, MIN_PRICE_RATIO
 
 app = FastAPI()
 
@@ -276,6 +276,10 @@ def predict_price(request: ListingRequest):
 
     # --- comparables and verdict ---
     comps = get_comparables(area, property_type, size_marla, block=block, url=request.url)
+    implausible = bool(
+        comps and asking_price and comps["typical"]
+        and asking_price / comps["typical"] < MIN_PRICE_RATIO
+    )
 
     if comps is None:
         verdict = "Not enough comparable listings to judge this one."
@@ -313,6 +317,7 @@ def predict_price(request: ListingRequest):
         "confidence": confidence,
         "scraped_raw": raw,
         "block": block,
+        "implausible": implausible,
     }
 
 
