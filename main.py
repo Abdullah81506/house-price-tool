@@ -21,12 +21,27 @@ model.load_model('house_price_model.json')
 # --- comparables data, loaded once at startup ---
 PRICE_NOT_REAL = ['installment', 'instalment', 'booking', 'on easy', 'down payment']
 
-COMPS = pd.read_csv('listings_cleaned.csv')
-COMPS = COMPS[
-    COMPS['price_numeric'].notna()
-    & COMPS['size_marla'].notna()
-    & (COMPS['size_marla'] > 0)
+_ALL = pd.read_csv('listings_cleaned.csv')
+
+# Vocabulary comes from everything the model was trained on. Filtering this
+# would shrink KNOWN_AREAS below the model's categories and silently send
+# some areas to "Other".
+KNOWN_AREAS = sorted(_ALL['area'].dropna().unique().tolist())
+KNOWN_PROPERTY_TYPES = ['House', 'Flat']
+
+COMPS = _ALL[
+    _ALL['price_numeric'].notna()
+    & _ALL['size_marla'].notna()
+    & (_ALL['size_marla'] > 0)
 ]
+
+# A buyer can only buy what is currently listed. August-only rows are
+# delisted or unbumped, so they belong in training but not in comparables.
+if 'generation' in COMPS.columns:
+    _b = len(COMPS)
+    COMPS = COMPS[COMPS['generation'] == 'fresh']
+    print(f"excluded {_b - len(COMPS):,} listings not in the current scrape", flush=True)
+
 _before = len(COMPS)
 _title_low = COMPS['title'].astype(str).str.lower()
 _installment = _title_low.apply(lambda t: any(w in t for w in PRICE_NOT_REAL))
@@ -41,7 +56,6 @@ except FileNotFoundError:
     print("WARNING: listing_deviations.csv missing - run precompute_deviations.py", flush=True)
 
 # --- areas come from the training data itself, so they can never go stale ---
-KNOWN_AREAS = sorted(COMPS['area'].dropna().unique().tolist())
 if DEVIATIONS.empty:
     BROWSE_AREAS = []
 else:
@@ -49,7 +63,6 @@ else:
                           & (DEVIATIONS['confidence'] == 'high')]
     BROWSE_AREAS = sorted(_flagged['area'].dropna().unique().tolist())
 print(f"{len(BROWSE_AREAS)} areas have high-confidence flagged listings", flush=True)
-KNOWN_PROPERTY_TYPES = ['House', 'Flat']
 
 print(f"loaded {len(COMPS):,} comparables across {len(KNOWN_AREAS)} areas", flush=True)
 
