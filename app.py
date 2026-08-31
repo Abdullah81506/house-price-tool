@@ -76,10 +76,18 @@ def card_html(d):
             f"<p class='meta'>{scope_label} · {d['property_type']} · {d['size_marla']} marla</p>")
 
     if not c:
+        size = d.get('size_marla')
+        where = d['area'] if d['area'] != 'Other' else 'this area'
+        if d['area'] == 'Other':
+            why = ("This area has too few listings in the dataset to compare "
+                   "against.")
+        else:
+            why = (f"Properties around {size} marla are uncommon in {where}, "
+                   f"so there are fewer than five to compare against.")
         return (f"<div class='card'><div class='pad'>{head}"
-                f"<p class='lede'>Not enough similar listings to say anything useful.</p>"
-                f"<p class='lede-2'>Fewer than five comparable properties in "
-                f"{d['area']} at this size.</p></div></div>")
+                f"<p class='lede'>No verdict on this one.</p>"
+                f"<p class='lede-2'>{why} A judgement from two or three "
+                f"listings would be worse than none.</p></div></div>")
 
     ask = d.get("asking_price")
     if ask is None:
