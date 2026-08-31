@@ -12,7 +12,7 @@ import pandas as pd
 import xgboost as xgb
 
 from main import COMPS, get_comparables
-from config import MARGIN, MAX_DEVIATION
+from config import MARGIN, MAX_DEVIATION, MIN_PRICE_RATIO
 
 df = COMPS.copy()
 print(f"{len(df):,} listings (installment/commercial already excluded)")
@@ -84,6 +84,11 @@ before_cap = len(out)
 
 # --- extreme deviations are price typos far more often than real outliers ---
 out = out[out['deviation'] <= MAX_DEVIATION]
+before_ratio = len(out)
+_low = ((out['position'] == 'below')
+        & (out['asking_price'] / out['comp_typical'] < MIN_PRICE_RATIO))
+out = out[~_low]
+print(f"removed implausibly low  : {before_ratio - len(out):,}")
 
 imgs = []
 for f in ('listings_houses.csv', 'listings_flats.csv'):

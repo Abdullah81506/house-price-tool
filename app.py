@@ -102,6 +102,10 @@ def card_html(d):
                 f"<span class='hl' style='color:{colour}'>{word}</span> {tail}.</p>"
                 f"<p class='lede-2'>That's {pct}% {dirn} than the {pkr(c['typical'])} typical "
                 f"for {d['size_marla']} marla {d['property_type'].lower()}s in {scope_label}.</p>")
+        if d.get("position") == "below":
+            lede += ("<p class='lede-2'>Unusually low asking prices are sometimes bait: "
+                     "the listing gets you to call, then you are told it is sold. "
+                     "Worth confirming it is real before you make plans.</p>")
 
     examples = "".join(
         f"<a class='comp' href='{e['url']}' target='_blank'>"
@@ -175,6 +179,10 @@ def browse(position, area):
     header = (f"<p style='font-size:12px;letter-spacing:.12em;text-transform:uppercase;"
               f"color:#3A5560'>{d['count']} listings asking well {pos} what similar-sized "
               f"listings nearby ask</p>")
+    if pos == "below":
+        header += ("<p style='font-size:12.5px;color:#3A5560'>Some of these are "
+                   "genuine, some are bait. Dealers post an attractive price to "
+                   "get a call, then say it has sold.</p>")
     return header + "".join(rows)
 
 
