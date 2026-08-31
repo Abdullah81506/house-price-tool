@@ -223,8 +223,7 @@ if __name__ == '__main__':
     df['area'] = df['best_location'].apply(extract_area)
     df['block'] = df['best_location'].apply(extract_block)
     df[['is_new', 'is_furnished', 'is_luxury',
-        'has_basement', 'is_corner', 'is_commercial']] = \
-        df['title'].apply(extract_title_features)
+        'has_basement', 'is_corner', 'is_commercial']] = df['title'].apply(extract_title_features)
     df['floor'] = df['title'].apply(extract_floor)
 
     area_counts = df['area'].value_counts()
