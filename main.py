@@ -10,6 +10,7 @@ from clean_data import parse_size, parse_price, extract_title_features, extract_
 from location_parser import split_location
 from detail_parser import DESC_KEYWORDS
 from config import BAND_LO, BAND_HI, MARGIN, MIN_COMPS, MIN_BLOCK_COMPS, MIN_PRICE_RATIO
+from data import load_listings, load_deviations
 
 app = FastAPI()
 
@@ -21,7 +22,7 @@ model.load_model('house_price_model.json')
 # --- comparables data, loaded once at startup ---
 PRICE_NOT_REAL = ['installment', 'instalment', 'booking', 'on easy', 'down payment']
 
-_ALL = pd.read_csv('listings_cleaned.csv')
+_ALL = load_listings()
 
 # Vocabulary comes from everything the model was trained on. Filtering this
 # would shrink KNOWN_AREAS below the model's categories and silently send
@@ -48,12 +49,9 @@ _installment = _title_low.apply(lambda t: any(w in t for w in PRICE_NOT_REAL))
 COMPS = COMPS[~_installment & (COMPS['is_commercial'] != 1)]
 print(f"excluded {_before - len(COMPS):,} installment/commercial listings", flush=True)
 
-try:
-    DEVIATIONS = pd.read_csv('listing_deviations.csv')
+DEVIATIONS = load_deviations()
+if not DEVIATIONS.empty:
     print(f"loaded {len(DEVIATIONS):,} precomputed deviations", flush=True)
-except FileNotFoundError:
-    DEVIATIONS = pd.DataFrame()
-    print("WARNING: listing_deviations.csv missing - run precompute_deviations.py", flush=True)
 
 # --- areas that can actually return browse results ---
 if DEVIATIONS.empty:

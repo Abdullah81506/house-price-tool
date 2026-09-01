@@ -14,8 +14,11 @@ import xgboost as xgb
 from sklearn.metrics import (mean_absolute_error,
                              mean_absolute_percentage_error, r2_score)
 from sklearn.model_selection import train_test_split
+from data import load_listings
 
-df = pd.read_csv('listings_cleaned.csv')
+
+df = load_listings()
+
 print(f"{len(df):,} rows")
 if 'generation' in df.columns:
     print(df['generation'].value_counts().to_string())
@@ -97,8 +100,8 @@ imp = pd.Series(model.feature_importances_, index=features).sort_values(ascendin
 print("=== top 20 features by importance ===")
 print(imp.head(20).to_string())
 
-model.save_model('house_price_model.json')
-print("\nModel saved. main.py applies np.expm1() to predictions.")
+# model.save_model('house_price_model.json')
+# print("\nModel saved. main.py applies np.expm1() to predictions.")
 print("KNOWN_AREAS is derived from COMPS at startup in main.py; nothing to paste.")
 
 
