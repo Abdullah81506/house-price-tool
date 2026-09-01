@@ -225,6 +225,33 @@ def get_comparables(area, property_type, size_marla, min_comps=MIN_COMPS, block=
             for _, r in nearest.iterrows()
         ],
     }
+def get_area_context(area, property_type, url=None, min_pool=10):
+    """Fallback when there are too few same-size comparables. Widens to all
+    sizes in the area and reports price per marla, which is how the market
+    talks about land anyway.
+
+    Deliberately does NOT return an implied price for the user's size:
+    per-marla rates fall as size rises, so multiplying a mixed-size rate by
+    one property would be false precision.
+    """
+    if area == "Other":
+        return None
+    c = COMPS[(COMPS['area'] == area) & (COMPS['property_type'] == property_type)]
+    if url:
+        c = c[c['url'] != url]
+    if len(c) < min_pool:
+        return None
+    ppm = (c['price_numeric'] / c['size_marla']).dropna()
+    if len(ppm) < min_pool:
+        return None
+    return {
+        "count": int(len(ppm)),
+        "ppm_low": float(ppm.quantile(0.15)),
+        "ppm_typical": float(ppm.median()),
+        "ppm_high": float(ppm.quantile(0.85)),
+        "size_low": float(c['size_marla'].min()),
+        "size_high": float(c['size_marla'].max()),
+    }
 
 @app.post("/predict")
 def predict_price(request: ListingRequest):
@@ -283,6 +310,7 @@ def predict_price(request: ListingRequest):
 
     # --- comparables and verdict ---
     comps = get_comparables(area, property_type, size_marla, block=block, url=request.url)
+    area_context = get_area_context(area, property_type, url=request.url) if comps is None else None
     implausible = bool(
         comps and asking_price and comps["typical"]
         and asking_price / comps["typical"] < MIN_PRICE_RATIO
@@ -325,6 +353,7 @@ def predict_price(request: ListingRequest):
         "scraped_raw": raw,
         "block": block,
         "implausible": implausible,
+        "area_context": area_context,
     }
 
 

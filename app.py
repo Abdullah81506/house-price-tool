@@ -85,10 +85,20 @@ def card_html(d):
         else:
             why = (f"Properties around {size} marla are uncommon in {where}, "
                    f"so there are fewer than five to compare against.")
+        ac = d.get("area_context")
+        extra = ""
+        if ac:
+            extra = (f"<p class='lede-2'>For wider context, houses in {d['area']} ask "
+                     f"<b>{pkr(ac['ppm_low'])} to {pkr(ac['ppm_high'])} per marla</b>, "
+                     f"typically {pkr(ac['ppm_typical'])}. That is across {ac['count']} "
+                     f"listings of {ac['size_low']:.0f} to {ac['size_high']:.0f} marla, "
+                     f"and rates fall as size rises, so it is a rough anchor rather "
+                     f"than a price for this property.</p>")
         return (f"<div class='card'><div class='pad'>{head}"
                 f"<p class='lede'>No verdict on this one.</p>"
                 f"<p class='lede-2'>{why} A judgement from two or three "
-                f"listings would be worse than none.</p></div></div>")
+                f"listings would be worse than none.</p>{extra}</div></div>")
+
 
     ask = d.get("asking_price")
     if ask is None:
