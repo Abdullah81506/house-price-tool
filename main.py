@@ -55,14 +55,18 @@ except FileNotFoundError:
     DEVIATIONS = pd.DataFrame()
     print("WARNING: listing_deviations.csv missing - run precompute_deviations.py", flush=True)
 
-# --- areas come from the training data itself, so they can never go stale ---
+# --- areas that can actually return browse results ---
 if DEVIATIONS.empty:
     BROWSE_AREAS = []
+    BROWSE_AREAS_ABOVE = []
+    BROWSE_AREAS_BELOW = []
 else:
-    _flagged = DEVIATIONS[(DEVIATIONS['position'] != 'within')
-                          & (DEVIATIONS['confidence'] == 'high')]
-    BROWSE_AREAS = sorted(_flagged['area'].dropna().unique().tolist())
-print(f"{len(BROWSE_AREAS)} areas have high-confidence flagged listings", flush=True)
+    _hc = DEVIATIONS[DEVIATIONS['confidence'] == 'high']
+    BROWSE_AREAS_ABOVE = sorted(_hc[_hc['position'] == 'above']['area'].dropna().unique().tolist())
+    BROWSE_AREAS_BELOW = sorted(_hc[_hc['position'] == 'below']['area'].dropna().unique().tolist())
+    BROWSE_AREAS = sorted(set(BROWSE_AREAS_ABOVE) | set(BROWSE_AREAS_BELOW))
+print(f"{len(BROWSE_AREAS)} areas have high-confidence flagged listings "
+      f"({len(BROWSE_AREAS_ABOVE)} above, {len(BROWSE_AREAS_BELOW)} below)", flush=True)
 
 print(f"loaded {len(COMPS):,} comparables across {len(KNOWN_AREAS)} areas", flush=True)
 

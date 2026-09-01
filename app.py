@@ -2,7 +2,8 @@
 import gradio as gr
 from main import (
     predict_price, estimate_price, browse_listings,
-    ListingRequest, EstimateRequest, KNOWN_AREAS, BROWSE_AREAS, COMPS
+    ListingRequest, EstimateRequest, KNOWN_AREAS, BROWSE_AREAS, COMPS, BROWSE_AREAS_ABOVE,
+    BROWSE_AREAS_BELOW
 )
 
 try:
@@ -161,6 +162,9 @@ def check_details(area, ptype, size, beds, baths):
         baths=float(baths) if baths else None))
     return card_html(d)
 
+def swap_areas(position):
+    areas = BROWSE_AREAS_ABOVE if position.startswith("Asking more") else BROWSE_AREAS_BELOW
+    return gr.update(choices=[""] + areas, value="")
 
 def browse(position, area):
     print("RUN: check_url", flush=True)
@@ -225,12 +229,13 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
         with gr.Row():
             pos_in = gr.Radio(["Asking more than their area", "Asking less than their area"],
                               value="Asking more than their area", label="Show listings")
-            barea_in = gr.Dropdown(choices=[""] + BROWSE_AREAS, value="",
+            barea_in = gr.Dropdown(choices=[""] + BROWSE_AREAS_ABOVE, value="",
                                    label="Area (blank = all)", filterable=True)
 
         br_btn = gr.Button("Show listings", variant="primary")
         br_out = gr.HTML()
         br_btn.click(browse, [pos_in, barea_in], br_out)
+        pos_in.change(swap_areas, pos_in, barea_in)
 
     gr.Markdown(
         "These are prices sellers *ask*, not what properties sell for — Pakistan keeps no "
