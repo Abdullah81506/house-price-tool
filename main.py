@@ -11,6 +11,7 @@ from location_parser import split_location
 from detail_parser import DESC_KEYWORDS
 from config import BAND_LO, BAND_HI, MARGIN, MIN_COMPS, MIN_BLOCK_COMPS, MIN_PRICE_RATIO
 from data import load_listings, load_deviations
+from concurrent.futures import ThreadPoolExecutor
 
 app = FastAPI()
 
@@ -102,14 +103,18 @@ def scrape_single_listing(url):
         if m.group(1) not in ids:
             ids.append(m.group(1))
     candidates = [f"https://media.zameen.com/thumbnails/{i}-800x600.jpeg" for i in ids[:10]]
-    images = []
-    for u in candidates:
+
+    def _real_image(u):
+        """Zameen placeholders are real files, so onerror never fires in the
+        browser. Size is what distinguishes them."""
         try:
             r = requests.head(u, headers=headers, timeout=5)
-            if int(r.headers.get("Content-Length", 0)) > 10000:
-                images.append(u)
+            return u if int(r.headers.get("Content-Length", 0)) > 10000 else None
         except requests.RequestException:
-            pass
+            return None
+
+    with ThreadPoolExecutor(max_workers=10) as pool:
+        images = [u for u in pool.map(_real_image, candidates) if u]
 
     def get_field(label):
         el = soup.find("span", attrs={"aria-label": label})
