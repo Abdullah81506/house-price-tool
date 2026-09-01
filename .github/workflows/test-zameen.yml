@@ -1,0 +1,42 @@
+name: Can GitHub reach Zameen
+
+on:
+  workflow_dispatch:        # run manually from the Actions tab
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - run: pip install requests beautifulsoup4
+
+      - name: Fetch a search page and a detail page
+        run: |
+          python - <<'PY'
+          import requests, time
+          from bs4 import BeautifulSoup
+          H = {"User-Agent": "Mozilla/5.0"}
+
+          for label, url in [
+              ("search p1",   "https://www.zameen.com/Houses_Property/Lahore-1-1.html"),
+              ("search p300", "https://www.zameen.com/Houses_Property/Lahore-1-300.html"),
+              ("detail",      "https://www.zameen.com/Property/dha_phase_6_dha_phase_6_-_block_k_a_20_marla_house_has_landed_on_market_in_dha_phase_6_-_block_k_of_lahore-54571095-1619-1.html"),
+          ]:
+              t = time.time()
+              try:
+                  r = requests.get(url, headers=H, timeout=30)
+                  s = BeautifulSoup(r.text, "html.parser")
+                  cards = len(s.find_all("li", attrs={"aria-label": "Listing"}))
+                  hdr = s.find(attrs={"aria-label": "Property header"})
+                  print(f"{label:12s} status={r.status_code} bytes={len(r.text):7d} "
+                        f"cards={cards:3d} header={'yes' if hdr else 'no'} "
+                        f"{time.time()-t:.1f}s")
+              except Exception as e:
+                  print(f"{label:12s} ERROR {type(e).__name__}: {e}")
+              time.sleep(2)
+          PY
