@@ -255,27 +255,15 @@ if __name__ == '__main__':
     # Kept out of the cleaned file to stay under Hugging Face's 10MB limit.
     # All of these live in detail_features.csv or the raw scrapes, and
     # nothing in main.py, train.py or precompute_deviations.py reads them.
-    HEAVY = [
-        'page_text_raw', 'description_raw', 'property_details_raw',
-        'gallery_ids', 'gallery_count',
-        'cover_image', 'detail_location', 'location',
-        'agent_name', '_agent_label_used', '_amenities_label_used',
-        'detail_scraped_at', 'detail_added_text',
-        'bumped_text', 'bumped_date', 'updated_text', 'updated_date',
-        'bumped_days', 'updated_days',
-        'purpose', 'page', 'currency', 'built_in_year', 'parking_spaces', 'floors',
-        'servant_quarters', 'store_rooms',
-        'has_double_glazed_windows', 'has_central_air_conditioning',
-        'has_central_heating', 'has_electricity_backup',
-        'has_waste_disposal', 'has_flooring', 'has_swimming_pool',
-        'has_lawn_or_garden', 'has_service_elevators', 'has_security_staff',
-    ]
+    HEAVY = ['page_text_raw', 'description_raw', 'property_details_raw']
     drop = [c for c in HEAVY if c in df.columns]
     if drop:
         df = df.drop(columns=drop)
         print(f"dropped {len(drop)} columns not read downstream: {sum(df.memory_usage(deep=True))/1e6:.1f} MB")
-    df.to_csv('listings_cleaned.csv', index=False)
-    print(f"\nSaved listings_cleaned.csv: {len(df):,} rows, {df.shape[1]} cols")
+
+
+    df.to_parquet('listings_cleaned.parquet', compression='zstd', index=False)
+    print(f"\nSaved listings_cleaned.parquet: {len(df):,} rows, {df.shape[1]} cols")
     print(df['generation'].value_counts().to_string())
     print(df['property_type'].value_counts().to_string())
     print(f"with a block: {df['block'].notna().sum():,}")

@@ -1,39 +1,56 @@
 # data.py
 """Single place that knows where the data lives and what shape it should be.
 
-Four scripts read these files. Four separate pd.read_* calls is the shape that
-has produced four bugs in this project, so the path, the format and the
-validation live here.
+Four scripts read these files. Four separate reads is the shape that has
+produced four bugs in this project, so the path, the format and the validation
+live here.
+
+Data lives in a public HF dataset repo rather than the Space repo, because
+Space repos reject binary files outright (so no parquet) and cap files at 10MB,
+which listings_cleaned.csv exceeded at 27,712 rows. A local file takes
+precedence when present, so local scripts use the working copy and the deployed
+Space falls back to the hub.
 """
 import os
 import pandas as pd
+from huggingface_hub import hf_hub_download
 
-LISTINGS = 'listings_cleaned.csv'
-DEVIATIONS = 'listing_deviations.csv'
+REPO = "Abdullah81506/house-price-tool-data"
+LISTINGS = 'listings_cleaned.parquet'
+DEVIATIONS = 'listing_deviations.parquet'
 
-MIN_LISTINGS = 15_000        # sanity floor; a truncated file should fail loudly
+MIN_LISTINGS = 20_000
 REQUIRED = ['area', 'block', 'property_type', 'size_marla', 'price_numeric',
             'url', 'title', 'generation', 'is_commercial']
 
 
-def load_listings(path=LISTINGS):
-    if not os.path.exists(path):
-        raise FileNotFoundError(
-            f"{path} not found. Run clean_data.py to build it.")
-    df = pd.read_csv(path)
+def _read(filename):
+    """Local copy first, then the hub."""
+    if os.path.exists(filename):
+        return pd.read_parquet(filename), "local"
+    path = hf_hub_download(repo_id=REPO, filename=filename, repo_type="dataset")
+    return pd.read_parquet(path), "hub"
+
+
+def load_listings():
+    df, src = _read(LISTINGS)
     missing = [c for c in REQUIRED if c not in df.columns]
     if missing:
-        raise ValueError(f"{path} is missing required columns: {missing}. "
-                         f"It has {len(df.columns)} columns and {len(df):,} rows.")
+        raise ValueError(f"{LISTINGS} ({src}) is missing required columns: "
+                         f"{missing}. It has {len(df.columns)} columns and "
+                         f"{len(df):,} rows.")
     if len(df) < MIN_LISTINGS:
-        raise ValueError(f"{path} has only {len(df):,} rows, expected at least "
-                         f"{MIN_LISTINGS:,}. The file may be truncated.")
+        raise ValueError(f"{LISTINGS} ({src}) has only {len(df):,} rows, "
+                         f"expected at least {MIN_LISTINGS:,}. Possibly truncated.")
+    print(f"loaded {len(df):,} listings from {src}", flush=True)
     return df
 
 
-def load_deviations(path=DEVIATIONS):
-    """Returns an empty frame if absent; browse degrades rather than crashing."""
-    if not os.path.exists(path):
-        print(f"WARNING: {path} missing - run precompute_deviations.py", flush=True)
+def load_deviations():
+    try:
+        df, src = _read(DEVIATIONS)
+        print(f"loaded {len(df):,} deviations from {src}", flush=True)
+        return df
+    except Exception as e:
+        print(f"WARNING: could not load {DEVIATIONS}: {e}", flush=True)
         return pd.DataFrame()
-    return pd.read_csv(path)

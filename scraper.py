@@ -3,9 +3,27 @@
 Persists everything the card shows. Derive features later, never here:
 a field not written to disk cannot be recovered without another scrape.
 
-Page cap is 649 for the Lahore houses URL (verified). Pages past that 404.
-Default sort is recency, so page 1 is today's listings and the tail areas
-surface deeper.
+PAGINATION CAP. A single Lahore houses URL stops at page 649, which is 16,225
+of the 23,212 houses Zameen reports. The result set is ordered by bump date, so
+the ~7,000 unreachable listings are the ones agents have not refreshed recently,
+which correlates with slower-moving areas (Bedian Road shows 260 properties on
+Zameen and only 6 reached the old scrape).
+
+The fix is price bands. They are non-overlapping by construction, each sits well
+under the cap, and they need no reasoning about Zameen's nested locations
+(DHA Defence contains DHA Phase 6 contains Block K). Verified band sizes:
+
+    under 1.5cr   2,358      1.5 to 3cr    7,354
+    3 to 6cr      6,456      6 to 12cr     5,190
+    over 12cr     2,593                    total 23,951
+
+The total slightly exceeds Zameen's 23,212 because listings priced on a boundary
+appear in two bands. clean_data.py dedups on listing_id, so that is handled.
+A price changing mid-run can also duplicate or miss a listing; both are rare and
+the dedup covers the first. Do not scrape bands in parallel, since that widens
+the window for it.
+
+Flats need no banding: 3,172 scraped against 3,171 reported, already complete.
 """
 import csv
 import re
@@ -17,38 +35,45 @@ from bs4 import BeautifulSoup
 
 HEADERS = {"User-Agent": "Mozilla/5.0"}
 
+HOUSES_URL = "https://www.zameen.com/Houses_Property/Lahore-1-{page}.html"
+FLATS_URL = "https://www.zameen.com/Flats_Apartments/Lahore-1-{page}.html"
+
+# (min, max) in rupees. max=None means no upper bound.
+PRICE_BANDS = [
+    (0, 15_000_000),
+    (15_000_000, 30_000_000),
+    (30_000_000, 60_000_000),
+    (60_000_000, 120_000_000),
+    (120_000_000, None),
+]
+
+MAX_PAGES = 649          # hard cap; bands should stop well before this
+DELAY = 1.5
+
 FIELDNAMES = [
-    # identity
-    "listing_id", "url", "page", "property_type",
-    # what the card shows
+    "listing_id", "url", "page", "property_type", "price_band",
     "title", "location", "currency", "price", "beds", "baths", "size",
-    # recency
     "created_text", "updated_text", "created_days", "updated_days",
     "created_date", "updated_date", "scraped_at",
-    # media
     "cover_image",
 ]
 
-# collects any date wording the parser does not recognise, printed at the end
 UNPARSED_DATES = set()
 
 
 def parse_relative_date(text, scraped_at):
     """'Added: 2 days ago' -> (2, '2026-08-27'). Returns (None, None) if unparsed.
 
-    Zameen buckets coarsely past a week, so 'ago' in weeks or months is
-    approximate. Fine for a 60-90 day filter, not for anything finer.
+    NOTE: this is a BUMP timestamp, not a creation date. Zameen resets it when
+    an agent refreshes a listing. Verified: 2,858 listings demonstrably live
+    3-4 weeks earlier reported being under a day old. Do not read it as age.
     """
     if not text:
         return None, None
 
-    t = text.lower()
-    t = re.sub(r"^\s*\(?\s*(added|updated)\s*:\s*", "", t)
-    t = t.strip(" ()")
+    t = re.sub(r"^\s*\(?\s*(added|updated)\s*:\s*", "", text.lower()).strip(" ()")
 
-    if "just now" in t or "moment" in t:
-        days = 0
-    elif "today" in t:
+    if "just now" in t or "moment" in t or "today" in t:
         days = 0
     elif "yesterday" in t:
         days = 1
@@ -58,15 +83,10 @@ def parse_relative_date(text, scraped_at):
             UNPARSED_DATES.add(text)
             return None, None
         n, unit = int(m.group(1)), m.group(2)
-        days = {
-            "minute": 0, "hour": 0, "day": n,
-            "week": n * 7, "month": n * 30, "year": n * 365,
-        }[unit]
-        if unit in ("minute", "hour"):
-            days = 0
+        days = {"minute": 0, "hour": 0, "day": n,
+                "week": n * 7, "month": n * 30, "year": n * 365}[unit]
 
-    date = (scraped_at - timedelta(days=days)).date().isoformat()
-    return days, date
+    return days, (scraped_at - timedelta(days=days)).date().isoformat()
 
 
 def extract_listing_id(url):
@@ -88,6 +108,8 @@ def parse_card(card, scraped_at):
     if url and url.startswith("/"):
         url = "https://www.zameen.com" + url
 
+    # Cards past the first few lazy-load, putting the real URL in data-src
+    # while src holds a placeholder. Reading src alone caught 80 of 500.
     img = card.find("img", attrs={"aria-label": "Listing photo"})
     cover = (img.get("src") or img.get("data-src")) if img else None
 
@@ -117,37 +139,45 @@ def parse_card(card, scraped_at):
     }
 
 
-def scrape_page(page_url, max_retries=2):
-    """Returns a list of listings, or None if the page never parsed cleanly.
+def build_url(template, page, band=None):
+    url = template.format(page=page)
+    if band:
+        lo, hi = band
+        url += f"?price_min={lo}"
+        if hi is not None:
+            url += f"&price_max={hi}"
+    return url
 
-    Returning None rather than the degraded list is the point: the previous
-    version silently wrote bad rows after exhausting its retries.
+
+def scrape_page(page_url, max_retries=2):
+    """Returns a list of listings, None past the end of the result set, or
+    None after exhausting retries.
+
+    Returning None rather than the degraded list matters: the previous version
+    wrote bad rows silently once its retries ran out.
     """
     for attempt in range(max_retries + 1):
         scraped_at = datetime.now()
         try:
-            resp = requests.get(page_url, headers=HEADERS, timeout=20)
+            resp = requests.get(page_url, headers=HEADERS, timeout=30)
         except requests.RequestException as e:
             print(f"    attempt {attempt + 1}: {type(e).__name__}")
             time.sleep(3)
             continue
 
+        if resp.status_code == 404:
+            return None                      # past the end of this band
         if resp.status_code != 200:
             print(f"    attempt {attempt + 1}: status {resp.status_code}")
-            if resp.status_code == 404:
-                return None          # past the page cap, no point retrying
             time.sleep(3)
             continue
 
         soup = BeautifulSoup(resp.text, "html.parser")
         cards = soup.find_all("li", attrs={"aria-label": "Listing"})
         if not cards:
-            print(f"    attempt {attempt + 1}: no cards")
-            time.sleep(3)
-            continue
+            return None                      # empty page, end of the band
 
         listings = [parse_card(c, scraped_at) for c in cards]
-
         missing = sum(1 for l in listings if l["title"] is None)
         if missing / len(listings) > 0.5:
             print(f"    attempt {attempt + 1}: degraded "
@@ -160,45 +190,61 @@ def scrape_page(page_url, max_retries=2):
     return None
 
 
-def scrape_and_save(base_url, output_file, property_type, num_pages, start_page=1):
-    failed = []
+def scrape_bands(template, property_type, bands, writer):
+    """Walks each band until a page returns nothing. Returns (total, failures)."""
+    total, failed = 0, []
+    for band in bands:
+        lo, hi = band if band else (None, None)
+        label = "all" if band is None else \
+            f"{lo/1e7:.1f}cr-{'inf' if hi is None else f'{hi/1e7:.1f}cr'}"
+        print(f"\n--- {property_type}, band {label} ---")
+        band_total = 0
+
+        for page in range(1, MAX_PAGES + 1):
+            listings = scrape_page(build_url(template, page, band))
+            if listings is None:
+                # Distinguish the end of the band from a genuine failure by
+                # retrying once; a real 404 returns None again immediately.
+                retry = scrape_page(build_url(template, page, band), max_retries=0)
+                if retry is None:
+                    print(f"  ends at page {page - 1}, {band_total} listings")
+                    break
+                listings = retry
+
+            for l in listings:
+                l["page"] = page
+                l["property_type"] = property_type
+                l["price_band"] = label
+            writer.writerows(listings)
+            band_total += len(listings)
+            total += len(listings)
+
+            if page % 25 == 0:
+                print(f"  page {page}: {band_total} in band, {total} overall")
+            time.sleep(DELAY)
+        else:
+            print(f"  WARNING: band {label} hit the {MAX_PAGES}-page cap. "
+                  f"Split it further or listings are being missed.")
+            failed.append(label)
+
+    return total, failed
+
+
+def run(output_file, template, property_type, bands):
     with open(output_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=FIELDNAMES)
         writer.writeheader()
-        total = 0
-        for page_num in range(start_page, num_pages + 1):
-            page_url = base_url.format(page_num)
-            listings = scrape_page(page_url)
+        total, failed = scrape_bands(template, property_type, bands, writer)
 
-            if listings is None:
-                failed.append(page_num)
-                print(f"page {page_num}: FAILED, nothing written")
-                time.sleep(1.5)
-                continue
-
-            for l in listings:
-                l["page"] = page_num
-                l["property_type"] = property_type
-            writer.writerows(listings)
-            total += len(listings)
-            print(f"page {page_num}: {len(listings)} listings (total {total})")
-            time.sleep(1.5)
-
-    print(f"\nDone. {total} listings written to {output_file}.")
+    print(f"\n{total:,} {property_type} listings written to {output_file}")
     if failed:
-        print(f"FAILED PAGES ({len(failed)}): {failed}")
-        print("Rerun these before trusting the file as complete.")
+        print(f"BANDS THAT HIT THE CAP: {failed}")
     if UNPARSED_DATES:
         print(f"\nUnrecognised date wording ({len(UNPARSED_DATES)} distinct):")
         for d in sorted(UNPARSED_DATES)[:20]:
             print(f"  {d!r}")
-        print("Add these to parse_relative_date before the full run.")
 
 
 if __name__ == "__main__":
-
-    # --- full run: uncomment once the test output has been inspected ---
-    scrape_and_save("https://www.zameen.com/Houses_Property/Lahore-1-{}.html",
-                    "listings_houses.csv", "House", num_pages=649)
-    scrape_and_save("https://www.zameen.com/Flats_Apartments/Lahore-1-{}.html",
-                    "listings_flats.csv", "Flat", num_pages=200)
+    run("listings_houses.csv", HOUSES_URL, "House", PRICE_BANDS)
+    run("listings_flats.csv", FLATS_URL, "Flat", [None])

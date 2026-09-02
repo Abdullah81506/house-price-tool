@@ -7,3 +7,6 @@ listings_houses.csv
 listings_flats.csv
 detail_features.csv
 test.py
+listings_cleaned.csv
+listing_deviations.csv
+*.parquet

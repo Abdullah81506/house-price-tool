@@ -101,11 +101,12 @@ if imgs:
     out = out.merge(imgs, on='url', how='left')
     print(f"merged photos: {out['image'].notna().sum():,} of {len(out):,}")
 
-out.to_csv('listing_deviations.csv', index=False)
+
+out.to_parquet('listing_deviations.parquet', compression='zstd', index=False)
 
 print(f"\nremoved duplicates      : {before_dedup - before_cap:,}")
 print(f"removed extreme (>{MAX_DEVIATION:.0%}) : {before_cap - len(out):,}")
-print(f"\nsaved listing_deviations.csv: {len(out):,} judged")
+print(f"\nsaved listing_deviations.parquet: {len(out):,} judged")
 print(out['position'].value_counts(normalize=True).mul(100).round(1).to_string())
 print(out['scope'].value_counts().to_string())
 print(f"\nhigh-confidence flagged: "
