@@ -49,6 +49,16 @@ CSS = """
 .nums b{color:#12262E !important;font-weight:600}
 .msg{padding:15px;background:#fff;border:1px solid #C9D4D3;
      border-left:3px solid #A97B29;font-size:14px}
+.about {font-family:system-ui,sans-serif;color:#12262E !important;line-height:1.55;
+        font-size:14.5px;max-width:640px}
+.about h3 {font-size:15px;margin:26px 0 8px;color:#12262E !important}
+.about h3:first-child {margin-top:6px}
+.about p {margin:0 0 11px;color:#2A4550 !important}
+.about b {color:#12262E !important}
+.about .lead {font-size:16.5px;color:#12262E !important;margin-bottom:16px}
+.about {font-family:system-ui,sans-serif;color:#12262E !important;line-height:1.55;
+        font-size:14.5px;max-width:640px;background:#fff;padding:20px;
+        border:1px solid #C9D4D3}
 """
 
 COLOUR = {"above": "#B23A48", "below": "#1F7A5C", "within": "#33566B"}
@@ -246,6 +256,73 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
         br_out = gr.HTML()
         br_btn.click(browse, [pos_in, barea_in], br_out)
         pos_in.change(swap_areas, pos_in, barea_in)
+
+    with gr.Tab("About"):
+            gr.HTML(f"""
+    <div class='about'>
+
+    <p class='lead'>Paste a Zameen listing link and this shows you what comparable
+    properties in the same area and size are asking, and where that listing sits
+    among them.</p>
+
+    <h3>Why it exists</h3>
+    <p>Pakistan keeps no public record of what properties actually sell for. There is
+    no registry a buyer can check. What exists is what sellers ask, and asking prices
+    for near-identical properties vary enormously.</p>
+    <p>In DHA Phase 6 Block K, 2-kanal houses with six bedrooms are currently listed
+    anywhere between 15 crore and 65 crore. Same block, same size, same bedroom count.
+    Some of that gap is real, and some of it is that nobody can check.</p>
+    <p>So this cannot tell you what a house is worth. Nobody can, honestly, with the
+    data that exists here. What it can do is bound the question.</p>
+    <p>Say you are told 2.85 crore is fair for a 5-marla house in Central Park Block A1,
+    and four comparable houses on that block are listed at 2.2 to 2.44. You do not know
+    2.85 is wrong. You know it needs a reason. Maybe the finish justifies it, maybe it
+    does not. Either way you now ask a question you would not have asked, and the seller
+    has to answer it.</p>
+
+    <h3>What you get</h3>
+    <p><b>A range.</b> The 15th to 85th percentile of asking prices for properties of
+    similar size in the same area. Where the listing names a block, it compares within
+    the block, which is narrower and more useful.</p>
+    <p><b>The comparables themselves</b>, with links, so you can open them and judge
+    whether the comparison is fair.</p>
+    <p><b>A model estimate</b>, shown last and deliberately so. The range is built from
+    real listings and is the more reliable figure.</p>
+
+    <h3>What it cannot do</h3>
+    <p><b>It is not a valuation.</b> It compares asking prices to asking prices. If
+    everyone in an area is asking too much, it will tell you a listing is normal.</p>
+    <p><b>It cannot see the house.</b> Two houses of the same size on the same block
+    can differ two or three times in price because of construction, finish and
+    condition. If a listing sits above the range, it might simply be better.</p>
+    <p><b>Out of range does not mean overpriced.</b> It means fewer than 15% of
+    comparable listings ask this much. A question worth asking, not an answer.</p>
+    <p><b>Unusually low prices are sometimes bait.</b> Dealers post an attractive price
+    to get you to call, then say it has sold and offer something else.</p>
+    <p><b>Some properties get no verdict.</b> With fewer than five genuine comparables
+    it says so rather than guessing. A judgement from two listings would be worse
+    than none.</p>
+
+    <h3>The data</h3>
+    <p>{len(COMPS):,} listings scraped from Zameen, covering houses and flats across
+    {len(KNOWN_AREAS)} areas of Lahore. Plots, farm houses and portions are not
+    covered, since they price on different logic. Installment-plan listings are
+    excluded, because the figure quoted is a payment plan rather than a sale price.</p>
+    <p>This is a snapshot rather than a live feed, so a listing may have sold or been
+    withdrawn since it was collected.</p>
+
+    <h3>Who made this</h3>
+    <p>I am an AI student in Lahore. I built this because the property market here runs
+    on information nobody outside it can check.</p>
+    <p>A friend who tested an early version put it better than I could: it helps you
+    get away from the bogus talk of dealers. That is the whole idea. It will not
+    replace an agent and it will not tell you what to pay. It is a second opinion to
+    have in hand before you make the call.</p>
+    <p>It is free, it has no ads, and it sells nothing to anyone. If it is useful, or
+    if it gets something wrong, I would rather know.</p>
+
+    </div>
+    """)
 
     gr.Markdown(
         "These are prices sellers *ask*, not what properties sell for — Pakistan keeps no "
