@@ -59,6 +59,10 @@ CSS = """
 .about {font-family:system-ui,sans-serif;color:#12262E !important;line-height:1.55;
         font-size:14.5px;max-width:640px;background:#fff;padding:20px;
         border:1px solid #C9D4D3}
+footer {display:none !important}
+.gradio-container {padding-top:8px !important}
+h1 {font-size:26px !important;line-height:1.25 !important;margin-bottom:4px !important}
+
 """
 
 COLOUR = {"above": "#B23A48", "below": "#1F7A5C", "within": "#33566B"}
@@ -218,6 +222,21 @@ def browse(position, area):
     return header + "".join(rows)
 
 
+THEME = gr.themes.Base(
+    primary_hue=gr.themes.colors.slate,
+    secondary_hue=gr.themes.colors.slate,
+    neutral_hue=gr.themes.colors.gray,
+    font=("system-ui", "sans-serif"),
+).set(
+    body_background_fill="#F4F6F6",
+    block_background_fill="#FFFFFF",
+    button_primary_background_fill="#12262E",
+    button_primary_background_fill_hover="#1F3D48",
+    button_primary_text_color="#FFFFFF",
+    block_border_width="1px",
+    block_radius="2px",
+)
+
 with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as demo:
     gr.Markdown(
         "# Is this listing priced like its neighbours?\n"
@@ -330,4 +349,4 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
     )
 
 if __name__ == "__main__":
-    demo.launch(css=CSS, ssr_mode=False)
+    demo.launch(css=CSS, theme=THEME, ssr_mode=False)
