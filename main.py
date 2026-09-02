@@ -280,6 +280,13 @@ def predict_price(request: ListingRequest):
                          "it may be a project or development page. Try a link "
                          "to a specific property."}
 
+    raw_type = raw.get("property_type")
+    if raw_type not in ("House", "Flat"):
+        return {"error": f"This looks like a {raw_type or 'different'} listing. "
+                         f"The tool only covers houses and flats. Plots, farm "
+                         f"houses and portions price on different logic, so a "
+                         f"verdict from house comparables would be misleading."}
+
     if is_installment(raw["title"]):
         return {"error": "This listing quotes an installment or booking plan rather "
                          "than an outright sale price, so it can't be compared "
