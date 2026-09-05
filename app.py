@@ -164,6 +164,20 @@ def card_html(d):
               f"{c['size_range_marla'][1]} marla in {scope_label}.{thin} The model estimate is "
               f"usually within about 15%; the range is the more reliable figure.</p></div>")
 
+import json
+
+
+def check_url_json(url):
+    """Same as check_url but returns the raw verdict as JSON, for the custom
+    frontend. The card is built in JavaScript there, so no HTML is produced
+    here: two implementations of the card would drift, which is a pattern this
+    project has already hit four times."""
+    print("RUN: check_url_json", flush=True)
+    if not url or "zameen.com" not in url:
+        return json.dumps({"error": "Paste a zameen.com listing link."})
+    d = predict_price(ListingRequest(url=url.strip()))
+    d.pop("scraped_raw", None)          # large and not needed by the frontend
+    return json.dumps(d, default=str)
 
 def check_url(url):
     print("RUN: check_url", flush=True)
@@ -342,6 +356,12 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
 
     </div>
     """)
+
+    with gr.Row(visible=False):
+        api_in = gr.Textbox()
+        api_out = gr.Textbox()
+        api_btn = gr.Button()
+        api_btn.click(check_url_json, api_in, api_out, api_name="check_url_json")
 
     gr.Markdown(
         "These are prices sellers *ask*, not what properties sell for — Pakistan keeps no "
