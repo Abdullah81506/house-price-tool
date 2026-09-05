@@ -288,6 +288,8 @@ THEME = gr.themes.Base(
 with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as demo:
     gr.Markdown(
         "# Is this listing priced like its neighbours?\n"
+        "This is the backend. The tool lives at "
+        "[house-price-tool-web](https://abdullah81506-house-price-tool-web.hf.space).\n\n"
         "Compares any Lahore property against real Zameen listings of similar size "
         f"in the same area. Built on {len(COMPS):,} listings."
     )
