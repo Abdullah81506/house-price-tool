@@ -20,8 +20,10 @@ import re
 from collections import Counter
 
 import pandas as pd
-
+import os
 from location_parser import extract_area, extract_block
+import sys
+FRESH_ONLY = '--fresh-only' in sys.argv
 
 # When the August scrape ran. Only used to seed listing_history for rows that
 # predate scraped_at being captured. Adjust if the real date is known.
@@ -130,8 +132,13 @@ if __name__ == '__main__':
     # ---------------------------------------------------------------- load
     print("fresh:")
     fresh = load(FRESH_FILES, "fresh")
-    print("august:")
-    august = load(AUGUST_FILES, "august")
+    if FRESH_ONLY:
+        print("fresh-only mode: skipping the August union and the detail merge")
+        august = pd.DataFrame(columns=fresh.columns)
+    else:
+        print("august:")
+        august = load(AUGUST_FILES, "august")
+
 
     # The August scrape predates these columns. Deriving the id the same way
     # for both generations is what makes the union dedupable.
@@ -171,6 +178,16 @@ if __name__ == '__main__':
         last_seen=('scraped_at', 'max'),
         times_seen=('scraped_at', 'size'),
     ).reset_index()
+
+    # Merge with what we already have. Rebuilding from scratch would discard
+    # every earlier scrape, and accumulated first_seen dates are the only way
+    # to know a listing's true age, since Zameen's date is a bump timestamp.
+    if os.path.exists('listing_history.csv'):
+        prev = pd.read_csv('listing_history.csv', dtype={'listing_id': str})
+        history['listing_id'] = history['listing_id'].astype(str)
+        merged = pd.concat([prev, history], ignore_index=True)
+        print(f"  merged with {len(prev):,} existing history rows")
+
     history.to_csv('listing_history.csv', index=False)
     print(f"\nlisting_history.csv: {len(history):,} listings, "
           f"{(history['times_seen'] > 1).sum():,} seen in both scrapes")
@@ -197,24 +214,35 @@ if __name__ == '__main__':
         print(f"  dropped {before - len(df)} duplicate urls")
 
     # -------------------------------------------------------- detail merge
-    details = pd.read_csv('detail_features.csv')
-    # The new detail scrape only covered fresh URLs, so August-only listings
-    # would lose the detail data they already had. Fill them from the old file.
-    old_details = pd.read_csv('raw_backup/detail_features_august.csv')
-    old_details = old_details[~old_details['url'].isin(set(details['url']))]
-    print(f"detail rows: {len(details):,} new + {len(old_details):,} august-only")
-    details = pd.concat([details, old_details], ignore_index=True)
-    if '_error' in details.columns:
-        details = details[details['_error'].isna()].drop(columns=['_error'])
-    df = df.merge(details, on='url', how='left')
-    print(f"\nafter detail merge: {df.shape}")
-    fill = df.groupby('generation')['detail_location'].apply(lambda s: s.notna().mean())
-    print("detail_location fill by generation:")
-    print(fill.round(3).to_string())
-    if fill.get('fresh', 1) < 0.5:
-        print("  WARNING: most fresh listings have no detail data, so they have\n"
-              "  no block and a coarser location string. Run the detail scrape\n"
-              "  before using this file to serve.")
+    if FRESH_ONLY:
+        # The model expects all 29 features, so the columns must exist even
+        # when empty. train.py fills them with 0.
+        from detail_parser import DESC_KEYWORDS
+
+        for c in (['detail_location', 'description_length']
+                  + ['desc_' + k for k in DESC_KEYWORDS]):
+            if c not in df.columns:
+                df[c] = None
+        print("\nno detail features in fresh-only mode")
+    else:
+        details = pd.read_csv('detail_features.csv')
+        # The new detail scrape only covered fresh URLs, so August-only listings
+        # would lose the detail data they already had. Fill them from the old file.
+        old_details = pd.read_csv('raw_backup/detail_features_august.csv')
+        old_details = old_details[~old_details['url'].isin(set(details['url']))]
+        print(f"detail rows: {len(details):,} new + {len(old_details):,} august-only")
+        details = pd.concat([details, old_details], ignore_index=True)
+        if '_error' in details.columns:
+            details = details[details['_error'].isna()].drop(columns=['_error'])
+        df = df.merge(details, on='url', how='left')
+        print(f"\nafter detail merge: {df.shape}")
+        fill = df.groupby('generation')['detail_location'].apply(lambda s: s.notna().mean())
+        print("detail_location fill by generation:")
+        print(fill.round(3).to_string())
+        if fill.get('fresh', 1) < 0.5:
+            print("  WARNING: most fresh listings have no detail data, so they have\n"
+                  "  no block and a coarser location string. Run the detail scrape\n"
+                  "  before using this file to serve.")
 
     # ---------------------------------------------------------- derive all
     df['price_numeric'] = df['price'].apply(parse_price)

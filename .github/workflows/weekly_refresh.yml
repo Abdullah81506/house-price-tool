@@ -1,0 +1,99 @@
+name: Weekly refresh
+
+# Manual only for now. Add a schedule once a few runs have been watched:
+#   schedule:
+#     - cron: '0 3 * * 1'      # Mondays, 03:00 UTC (08:00 Pakistan)
+on:
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120        # the scrape alone is ~50 minutes
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      # The runner has no detail_features.csv (157MB) and no August scrapes,
+      # so clean_data runs in --fresh-only mode. That drops the August union
+      # and the description features, measured at 0.27 points of NOVEL median
+      # against a seed variation of +/-1.2, so the loss is unmeasurable.
+      - name: Pull the current data
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          from huggingface_hub import hf_hub_download
+          import shutil, os
+          # listing_history.csv accumulates first_seen dates across scrapes and
+          # is the only source of true listing age, since Zameen's date is a
+          # bump timestamp. Losing it would restart that clock.
+          try:
+              p = hf_hub_download(repo_id="Abdullah81506/house-price-tool-data",
+                                  filename="listing_history.csv",
+                                  repo_type="dataset")
+              shutil.copy(p, "listing_history.csv")
+              print("pulled listing_history.csv")
+          except Exception as e:
+              print("no existing history:", e)
+          PY
+
+      - name: Scrape
+        run: python scraper.py
+
+      - name: Clean
+        run: python clean_data.py --fresh-only
+
+      - name: Train
+        run: python train.py
+
+      - name: Precompute verdicts
+        run: python precompute_deviations.py
+
+      # Everything above wrote local files only. If any check fails the job
+      # stops here and the live data is untouched.
+      - name: Check
+        run: python check_pipeline.py
+
+      - name: Upload and restart
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          api = HfApi(token=os.environ["HF_TOKEN"])
+          DATA = "Abdullah81506/house-price-tool-data"
+
+          for f in ("listings_cleaned.parquet", "listing_deviations.parquet",
+                    "listing_history.csv"):
+              api.upload_file(path_or_fileobj=f, path_in_repo=f,
+                              repo_id=DATA, repo_type="dataset")
+              print("uploaded", f)
+
+          # main.py loads the data once at startup, so without this the live
+          # Space keeps serving the old copy until it happens to sleep and wake.
+          api.restart_space(repo_id="Abdullah81506/house-price-tool")
+          print("space restarted")
+          PY
+
+      # Kept whether or not the run succeeded, so a failure can be diagnosed
+      # without rerunning the 50-minute scrape.
+      - name: Keep the scrape
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scrape-${{ github.run_number }}
+          path: |
+            listings_houses.csv
+            listings_flats.csv
+          retention-days: 14
