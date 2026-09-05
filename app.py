@@ -158,7 +158,7 @@ def card_html(d):
     thin = " Only a handful, so read it loosely." if d.get("confidence") == "low" else ""
     return (f"<div class='card'><div class='pad'>{head}{lede}"
             f"<div class='figs'>{figs}</div></div>"
-            + (f"<div class='proof'><h4>The closest listings this is measured against</h4>{examples}</div>"
+            + (f"<div class='proof'><h4>A spread of the listings this is measured against</h4>{examples}</div>"
                if examples else "")
             + f"<p class='note'>From {c['count']} listings of {c['size_range_marla'][0]}–"
               f"{c['size_range_marla'][1]} marla in {scope_label}.{thin} The model estimate is "

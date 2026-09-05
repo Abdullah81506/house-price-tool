@@ -206,9 +206,15 @@ def get_comparables(area, property_type, size_marla, min_comps=MIN_COMPS, block=
         if len(in_block) > 0:
             ex_pool = in_block
 
-    nearest = ex_pool.reindex(
-        (ex_pool['size_marla'] - size_marla).abs().sort_values().index
-    ).head(5)
+    ex_pool = ex_pool.sort_values('price_numeric')
+    if len(ex_pool) <= 5:
+        nearest = ex_pool
+    else:
+        targets = [0.15, 0.35, 0.50, 0.70, 0.85]
+        idx = sorted({min(len(ex_pool) - 1, int(round(t * (len(ex_pool) - 1))))
+                      for t in targets})
+        nearest = ex_pool.iloc[idx]
+
     return {
         "count": int(len(c)),
         "scope": scope,
