@@ -179,6 +179,40 @@ def check_url_json(url):
     d.pop("scraped_raw", None)          # large and not needed by the frontend
     return json.dumps(d, default=str)
 
+def check_details_json(area, ptype, size, beds, baths):
+    """Enter-details mode as JSON, for the custom frontend."""
+    print("RUN: check_details_json", flush=True)
+    if not area:
+        return json.dumps({"error": "Pick an area from the list."})
+    if not size:
+        return json.dumps({"error": "Enter a size in marla."})
+    d = estimate_price(EstimateRequest(
+        area=area, property_type=ptype, size_marla=float(size),
+        beds=float(beds) if beds else None,
+        baths=float(baths) if baths else None))
+    return json.dumps(d, default=str)
+
+
+def browse_json(position, area):
+    """Browse mode as JSON. Also returns the area lists so the frontend can
+    populate its dropdown without a second call."""
+    print("RUN: browse_json", flush=True)
+    pos = "above" if str(position).startswith("Asking more") else "below"
+    d = browse_listings(position=pos, area=(area or None), limit=15)
+    d["position"] = pos
+    return json.dumps(d, default=str)
+
+
+def frontend_config():
+    """Everything the frontend needs at load: area lists and counts."""
+    return json.dumps({
+        "known_areas": KNOWN_AREAS,
+        "browse_above": BROWSE_AREAS_ABOVE,
+        "browse_below": BROWSE_AREAS_BELOW,
+        "comps_count": len(COMPS),
+        "area_count": len(KNOWN_AREAS),
+    })
+
 def check_url(url):
     print("RUN: check_url", flush=True)
     if not url or "zameen.com" not in url:
@@ -362,6 +396,20 @@ with gr.Blocks(title="Is this Lahore listing priced like its neighbours?") as de
         api_out = gr.Textbox()
         api_btn = gr.Button()
         api_btn.click(check_url_json, api_in, api_out, api_name="check_url_json")
+
+        d_area, d_type, d_size = gr.Textbox(), gr.Textbox(), gr.Number()
+        d_beds, d_baths, d_out = gr.Number(), gr.Number(), gr.Textbox()
+        gr.Button().click(check_details_json,
+                          [d_area, d_type, d_size, d_beds, d_baths], d_out,
+                          api_name="check_details_json")
+
+        b_pos, b_area, b_out = gr.Textbox(), gr.Textbox(), gr.Textbox()
+        gr.Button().click(browse_json, [b_pos, b_area], b_out,
+                          api_name="browse_json")
+
+        cfg_out = gr.Textbox()
+        gr.Button().click(frontend_config, None, cfg_out,
+                          api_name="frontend_config")
 
     gr.Markdown(
         "These are prices sellers *ask*, not what properties sell for — Pakistan keeps no "
