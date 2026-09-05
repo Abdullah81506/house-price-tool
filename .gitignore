@@ -10,3 +10,4 @@ test.py
 listings_cleaned.csv
 listing_deviations.csv
 *.parquet
+photo_cache/

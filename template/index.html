@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Is this listing priced like its neighbours?</title>
+
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<script>
+tailwind.config = {
+  theme: { extend: {
+    colors: {
+      ink: '#12262E', muted: '#3A5560', line: '#C9D4D3',
+      paper: '#F7F6F3', accent: '#A8623A',
+      above: '#B23A48', below: '#1F7A5C', within: '#33566B',
+    },
+    fontFamily: {
+      display: ['Fraunces', 'Georgia', 'serif'],
+      sans: ['Inter', 'system-ui', 'sans-serif'],
+    },
+  }},
+}
+</script>
+
+<style>
+  body { font-family: Inter, system-ui, sans-serif; }
+  .tnum { font-variant-numeric: tabular-nums; }
+  .tab-on { color: #12262E; border-color: #12262E; }
+  .tab-off { color: #3A5560; border-color: transparent; }
+  select, input, button { font-family: inherit; }
+</style>
+</head>
+
+<body class="bg-paper text-ink">
+<div class="max-w-3xl mx-auto px-5 py-10">
+
+  <header class="mb-7">
+    <h1 class="font-display text-4xl leading-tight mb-2">
+      Is this listing priced like its neighbours?
+    </h1>
+    <p id="strap" class="text-muted text-[15px] leading-relaxed max-w-2xl">
+      Comparing Lahore properties against what similar listings nearby are asking.
+    </p>
+  </header>
+
+  <nav class="flex gap-6 border-b border-line mb-7 text-[15px]">
+    <button data-tab="link"    class="tab pb-2 border-b-2 tab-on">Paste a link</button>
+    <button data-tab="details" class="tab pb-2 border-b-2 tab-off">Enter details</button>
+    <button data-tab="browse"  class="tab pb-2 border-b-2 tab-off">Browse</button>
+    <button data-tab="about"   class="tab pb-2 border-b-2 tab-off">About</button>
+  </nav>
+
+  <!-- ---------------------------------------------------------- paste a link -->
+  <section id="panel-link">
+    <div class="flex gap-2 mb-2">
+      <input id="url" type="url" spellcheck="false"
+             placeholder="https://www.zameen.com/Property/..."
+             class="flex-1 min-w-0 px-4 py-3 bg-white border border-line rounded-sm
+                    text-[15px] placeholder:text-muted/50 focus:outline-none
+                    focus:border-ink focus:ring-1 focus:ring-ink">
+      <button id="go" class="px-6 py-3 bg-ink text-white text-[15px] font-medium
+                             rounded-sm hover:bg-muted transition-colors
+                             disabled:opacity-50 whitespace-nowrap">Check</button>
+    </div>
+    <p class="text-muted text-[13px] mb-7">
+      These are prices sellers ask, not what properties sell for. Pakistan keeps
+      no public record of sale prices.
+    </p>
+    <div id="out-link"></div>
+  </section>
+
+  <!-- -------------------------------------------------------- enter details -->
+  <section id="panel-details" class="hidden">
+    <div class="bg-white border border-line rounded-sm p-5 mb-6">
+      <label class="block text-[13px] text-muted mb-1">Area</label>
+      <select id="d-area" class="w-full mb-4 px-3 py-2.5 bg-white border border-line
+              rounded-sm text-[15px] focus:outline-none focus:border-ink"></select>
+
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <label class="block text-[13px] text-muted mb-1">Type</label>
+          <select id="d-type" class="w-full px-3 py-2.5 bg-white border border-line
+                  rounded-sm text-[15px] focus:outline-none focus:border-ink">
+            <option>House</option><option>Flat</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[13px] text-muted mb-1">Size (marla)</label>
+          <input id="d-size" type="number" value="10" min="1" step="0.5"
+                 class="w-full px-3 py-2.5 bg-white border border-line rounded-sm
+                        text-[15px] focus:outline-none focus:border-ink">
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="block text-[13px] text-muted mb-1">Bedrooms</label>
+          <input id="d-beds" type="number" min="0"
+                 class="w-full px-3 py-2.5 bg-white border border-line rounded-sm
+                        text-[15px] focus:outline-none focus:border-ink">
+        </div>
+        <div>
+          <label class="block text-[13px] text-muted mb-1">Bathrooms</label>
+          <input id="d-baths" type="number" min="0"
+                 class="w-full px-3 py-2.5 bg-white border border-line rounded-sm
+                        text-[15px] focus:outline-none focus:border-ink">
+        </div>
+      </div>
+
+      <button id="d-go" class="px-6 py-3 bg-ink text-white text-[15px] font-medium
+                               rounded-sm hover:bg-muted transition-colors
+                               disabled:opacity-50">Show the typical range</button>
+    </div>
+    <div id="out-details"></div>
+  </section>
+
+  <!-- --------------------------------------------------------------- browse -->
+  <section id="panel-browse" class="hidden">
+    <div class="bg-white border border-line rounded-sm p-5 mb-6">
+      <div class="grid sm:grid-cols-2 gap-4 mb-5">
+        <div>
+          <label class="block text-[13px] text-muted mb-1">Show listings</label>
+          <select id="b-pos" class="w-full px-3 py-2.5 bg-white border border-line
+                  rounded-sm text-[15px] focus:outline-none focus:border-ink">
+            <option>Asking more than their area</option>
+            <option>Asking less than their area</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[13px] text-muted mb-1">Area (blank = all)</label>
+          <select id="b-area" class="w-full px-3 py-2.5 bg-white border border-line
+                  rounded-sm text-[15px] focus:outline-none focus:border-ink"></select>
+        </div>
+      </div>
+      <button id="b-go" class="px-6 py-3 bg-ink text-white text-[15px] font-medium
+                               rounded-sm hover:bg-muted transition-colors
+                               disabled:opacity-50">Show listings</button>
+    </div>
+    <div id="out-browse"></div>
+  </section>
+
+  <!-- ---------------------------------------------------------------- about -->
+  <section id="panel-about" class="hidden">
+    <div class="bg-white border border-line rounded-sm p-7 text-[15px] leading-relaxed">
+      <p class="text-[16.5px] mb-6">
+        Paste a Zameen listing link and this shows you what comparable properties
+        in the same area and size are asking, and where that listing sits among
+        them.
+      </p>
+
+      <h3 class="font-display text-xl mt-7 mb-2">Why it exists</h3>
+      <p class="text-muted mb-3">
+        Pakistan keeps no public record of what properties actually sell for.
+        There is no registry a buyer can check. What exists is what sellers ask,
+        and asking prices for near-identical properties vary enormously.
+      </p>
+      <p class="text-muted mb-3">
+        In DHA Phase 6 Block K, 2-kanal houses with six bedrooms are currently
+        listed anywhere between 9 crore and 25 crore. Same block, same size, same
+        bedroom count. Some of that gap is real, and some of it is that nobody
+        can check.
+      </p>
+      <p class="text-muted mb-3">
+        So this cannot tell you what a house is worth. Nobody can, honestly, with
+        the data that exists here. What it can do is bound the question.
+      </p>
+      <p class="text-muted mb-3">
+        Say you are told 2.85 crore is fair for a 5-marla house in Central Park
+        Block A1, and four comparable houses on that block are listed at 2.2 to
+        2.44. You do not know 2.85 is wrong. You know it needs a reason. Maybe
+        the finish justifies it, maybe it does not. Either way you now ask a
+        question you would not have asked, and the seller has to answer it.
+      </p>
+
+      <h3 class="font-display text-xl mt-7 mb-2">What you get</h3>
+      <p class="text-muted mb-3"><b class="text-ink">A range.</b> The 15th to 85th
+        percentile of asking prices for properties of similar size in the same
+        area. Where the listing names a block, it compares within the block,
+        which is narrower and more useful.</p>
+      <p class="text-muted mb-3"><b class="text-ink">The comparables themselves</b>,
+        spread across that range and linked, so you can open them and judge
+        whether the comparison is fair.</p>
+      <p class="text-muted mb-3"><b class="text-ink">A model estimate</b>, shown
+        last and deliberately so. The range is built from real listings and is the
+        more reliable figure.</p>
+
+      <h3 class="font-display text-xl mt-7 mb-2">What it cannot do</h3>
+      <p class="text-muted mb-3"><b class="text-ink">It is not a valuation.</b> It
+        compares asking prices to asking prices. If everyone in an area is asking
+        too much, it will tell you a listing is normal.</p>
+      <p class="text-muted mb-3"><b class="text-ink">It cannot see the house.</b>
+        Two houses of the same size on the same block can differ two or three
+        times in price because of construction, finish and condition. If a listing
+        sits above the range, it might simply be better.</p>
+      <p class="text-muted mb-3"><b class="text-ink">Out of range does not mean
+        overpriced.</b> It means fewer than 15% of comparable listings ask this
+        much. A question worth asking, not an answer.</p>
+      <p class="text-muted mb-3"><b class="text-ink">Unusually low prices are
+        sometimes bait.</b> Dealers post an attractive price to get you to call,
+        then say it has sold and offer something else.</p>
+      <p class="text-muted mb-3"><b class="text-ink">Some properties get no
+        verdict.</b> With fewer than five genuine comparables it says so rather
+        than guessing. A judgement from two listings would be worse than none.</p>
+
+      <h3 class="font-display text-xl mt-7 mb-2">The data</h3>
+      <p id="about-data" class="text-muted mb-3">
+        Listings scraped from Zameen, covering houses and flats in Lahore. Plots,
+        farm houses and portions are not covered, since they price on different
+        logic. Installment-plan listings are excluded, because the figure quoted
+        is a payment plan rather than a sale price.
+      </p>
+      <p class="text-muted mb-3">
+        This is a snapshot rather than a live feed, so a listing may have sold or
+        been withdrawn since it was collected.
+      </p>
+
+      <h3 class="font-display text-xl mt-7 mb-2">Who made this</h3>
+      <p class="text-muted mb-3">
+        I am an AI student in Lahore. I built this because the property market
+        here runs on information nobody outside it can check.
+      </p>
+      <p class="text-muted mb-3">
+        A friend who tested an early version put it better than I could: it helps
+        you get away from the bogus talk of dealers. That is the whole idea. It
+        will not replace an agent and it will not tell you what to pay. It is a
+        second opinion to have in hand before you make the call.
+      </p>
+      <p class="text-muted">
+        It is free, it has no ads, and it sells nothing to anyone. If it is
+        useful, or if it gets something wrong, I would rather know.
+      </p>
+    </div>
+  </section>
+
+</div>
+
+<script>
+const API = "https://abdullah81506-house-price-tool.hf.space/gradio_api";
+
+// ---------------------------------------------------------------- helpers
+const $ = id => document.getElementById(id);
+
+function pkr(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  if (n >= 1e7) return (+(n / 1e7).toFixed(2)) + ' cr';
+  if (n >= 1e5) return (+(n / 1e5).toFixed(1)) + ' lakh';
+  return Math.round(n).toLocaleString();
+}
+
+const esc = s => String(s ?? '').replace(/[&<>"']/g,
+  c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function message(text) {
+  return `<div class="bg-white border border-line border-l-4 border-l-accent
+                      rounded-sm p-5 text-[15px]">${esc(text)}</div>`;
+}
+
+/** Gradio's API is two calls: POST to start, GET to read the event stream. */
+async function callApi(name, data) {
+  const start = await fetch(`${API}/call/${name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  });
+  const { event_id } = await start.json();
+  const text = await (await fetch(`${API}/call/${name}/${event_id}`)).text();
+
+  let payload = null;
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data:')) continue;
+    try {
+      const parsed = JSON.parse(line.slice(5));
+      if (Array.isArray(parsed) && parsed.length) payload = parsed[0];
+    } catch (e) { /* not the line we want */ }
+  }
+  if (payload === null) throw new Error('no data in response');
+  return JSON.parse(payload);
+}
+
+async function withButton(btn, label, fn) {
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = label;
+  try { await fn(); } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+// ---------------------------------------------------------------- the card
+function figure(label, value, big) {
+  return `<div>
+    <div class="text-[11px] uppercase tracking-wider text-muted mb-1">${label}</div>
+    <div class="tnum ${big ? 'text-xl' : 'text-lg'} font-medium">${value}</div>
+  </div>`;
+}
+
+function gallery(images) {
+  if (!images || !images.length) return '';
+  const thumbs = images.map(u =>
+    `<img src="${esc(u)}" loading="lazy" alt=""
+          class="h-40 w-56 flex-none object-cover rounded-sm">`).join('');
+  return `<div class="flex gap-2 overflow-x-auto pb-2 mb-6 snap-x">${thumbs}</div>`;
+}
+
+function card(d) {
+  if (d.error) return message(d.error);
+
+  const c = d.comparables;
+  const where = c && c.scope === 'block' && c.block ? `${d.area}, ${c.block}` : d.area;
+
+  const head = `
+    <p class="font-display text-2xl leading-snug mb-1">${esc(d.title || '')}</p>
+    <p class="text-muted text-[14px] mb-6">
+      ${esc(where)} &middot; ${esc(d.property_type)} &middot; ${d.size_marla} marla
+    </p>`;
+
+  if (!c) {
+    const ac = d.area_context;
+    const why = d.area === 'Other'
+      ? 'This area has too few listings to compare against.'
+      : `Properties around ${d.size_marla} marla are uncommon in ${esc(d.area)}, so there are fewer than five to compare against.`;
+    const extra = ac ? `
+      <p class="text-muted leading-relaxed mt-3">
+        For wider context, houses in ${esc(d.area)} ask
+        <b class="text-ink">${pkr(ac.ppm_low)} to ${pkr(ac.ppm_high)} per marla</b>,
+        typically ${pkr(ac.ppm_typical)}. That is across ${ac.count} listings of
+        ${Math.round(ac.size_low)} to ${Math.round(ac.size_high)} marla, and rates
+        fall as size rises, so it is a rough anchor rather than a price for this
+        property.</p>` : '';
+    return `<div class="bg-white border border-line rounded-sm p-6 text-[15px]">
+      ${head}
+      <p class="font-display text-2xl mb-2">No verdict on this one.</p>
+      <p class="text-muted leading-relaxed">${why} A judgement from two or three
+         listings would be worse than none.</p>${extra}</div>`;
+  }
+
+  const ask = d.asking_price;
+  const colour = { above: 'text-above', below: 'text-below', within: 'text-within' }[d.position] || 'text-within';
+
+  let lede;
+  if (ask === null || ask === undefined) {
+    lede = `<p class="font-display text-3xl leading-snug">
+              Similar properties here ask <b>${pkr(c.typical)}</b> on average.</p>`;
+  } else if (d.implausible) {
+    lede = `
+      <p class="font-display text-3xl leading-snug mb-2">
+        <b>${pkr(ask)}</b> is far below everything comparable nearby.</p>
+      <p class="text-muted leading-relaxed">That usually means a typo in the
+        listing, or a property that is not comparable, such as a plot rather than
+        a house. The figures below are real; judge for yourself.</p>`;
+  } else {
+    const word = { within: 'in line', above: 'more than usual', below: 'less than usual' }[d.position] || 'in line';
+    const tail = d.position === 'within' ? 'with similar listings' : 'around here';
+    const pct = Math.round(Math.abs(ask - c.typical) / c.typical * 100);
+    const dirn = ask >= c.typical ? 'more' : 'less';
+    lede = `
+      <p class="font-display text-3xl leading-snug mb-2">
+        <b>${pkr(ask)}</b> is
+        <span class="${colour} border-b-[3px] border-current">${word}</span> ${tail}.</p>
+      <p class="text-muted leading-relaxed">That is ${pct}% ${dirn} than the
+        ${pkr(c.typical)} typical for ${d.size_marla} marla
+        ${esc(String(d.property_type).toLowerCase())}s in ${esc(where)}.</p>`;
+    if (d.position === 'below') {
+      lede += `<p class="text-muted leading-relaxed mt-3">Unusually low asking
+        prices are sometimes bait: the listing gets you to call, then you are told
+        it is sold. Worth confirming it is real before you make plans.</p>`;
+    }
+  }
+
+  const figs = `
+    <div class="flex flex-wrap gap-8 mt-7 pt-5 border-t border-line">
+      ${ask ? figure('Asking', pkr(ask), true) : ''}
+      ${figure('Typical', pkr(c.typical))}
+      ${figure('Usual range', pkr(c.low) + ' – ' + pkr(c.high))}
+      ${figure('Model estimate', pkr(d.predicted_price))}
+    </div>`;
+
+  const comps = (c.examples || []).map(e => `
+    <a href="${esc(e.url)}" target="_blank" rel="noopener"
+       class="flex justify-between gap-4 py-2.5 border-b border-dotted border-line
+              text-[14px] hover:text-accent transition-colors">
+      <span>${esc(e.title)}</span>
+      <span class="tnum whitespace-nowrap">${pkr(e.price)}</span></a>`).join('');
+
+  const thin = d.confidence === 'low' ? ' Only a handful, so read it loosely.' : '';
+
+  return `
+    <div class="bg-white border border-line rounded-sm overflow-hidden text-[15px]">
+      <div class="p-6">${head}${lede}${figs}</div>
+      ${comps ? `<div class="border-t border-line bg-paper/60 px-6 pt-5 pb-1">
+        <h4 class="text-[11px] uppercase tracking-widest text-muted mb-3">
+          A spread of the listings this is measured against</h4>
+        ${comps}</div>` : ''}
+      <p class="text-muted text-[13px] leading-relaxed px-6 py-4">
+        From ${c.count} listings of ${c.size_range_marla[0]}–${c.size_range_marla[1]}
+        marla in ${esc(where)}.${thin} The model estimate is usually within about
+        15%; the range is the more reliable figure.</p>
+    </div>`;
+}
+
+// ---------------------------------------------------------------- browse rows
+function browseRows(d) {
+  if (d.error || !d.listings || !d.listings.length) {
+    return message('Nothing matches that. Try another area.');
+  }
+  const pos = d.position;
+  const colour = pos === 'above' ? 'border-l-above' : 'border-l-below';
+  const text = pos === 'above' ? 'text-above' : 'text-below';
+
+  const warn = pos === 'below' ? `
+    <p class="text-muted text-[13.5px] mb-4">Some of these are genuine, some are
+      bait. Dealers post an attractive price to get a call, then say it has
+      sold.</p>` : '';
+
+  const rows = d.listings.map(l => {
+    const ratio = l.comp_typical ? (l.asking_price / l.comp_typical) : 0;
+    const img = l.image ? `<img src="${esc(l.image)}" loading="lazy" alt=""
+        class="w-24 h-20 object-cover flex-none rounded-sm bg-line">` : '';
+    const model = l.predicted_price
+      ? `<span>model says <b class="text-ink">${pkr(l.predicted_price)}</b></span>` : '';
+    return `
+      <a href="${esc(l.url)}" target="_blank" rel="noopener"
+         class="flex gap-4 bg-white border border-line ${colour} border-l-4
+                rounded-sm p-3 mb-2.5 hover:border-l-accent transition-colors">
+        ${img}
+        <div class="min-w-0">
+          <h3 class="text-[14.5px] font-medium leading-snug mb-1.5">${esc(l.title)}</h3>
+          <div class="flex flex-wrap gap-x-4 gap-y-1 text-[12.5px] text-muted">
+            <span>asks <b class="text-ink">${pkr(l.asking_price)}</b></span>
+            <span>similar ask <b class="text-ink">${pkr(l.comp_typical)}</b></span>
+            ${model}
+            <span class="${text} font-semibold tnum">${ratio.toFixed(1)}× typical</span>
+          </div>
+        </div></a>`;
+  }).join('');
+
+  return `<p class="text-[12px] uppercase tracking-widest text-muted mb-2">
+            ${d.count} listings asking well ${pos} what similar-sized listings
+            nearby ask</p>${warn}${rows}`;
+}
+
+// ---------------------------------------------------------------- config
+let CONFIG = { known_areas: [], browse_above: [], browse_below: [] };
+
+function fillSelect(sel, options, blankFirst) {
+  sel.innerHTML = (blankFirst ? '<option value=""></option>' : '')
+    + options.map(a => `<option>${esc(a)}</option>`).join('');
+}
+
+async function loadConfig() {
+  try {
+    CONFIG = await callApi('frontend_config', []);
+    fillSelect($('d-area'), CONFIG.known_areas, true);
+    fillSelect($('b-area'), CONFIG.browse_above, true);
+    $('strap').textContent =
+      `Comparing Lahore properties against what similar listings nearby are `
+      + `asking. Built on ${CONFIG.comps_count.toLocaleString()} listings across `
+      + `${CONFIG.area_count} areas.`;
+    $('about-data').textContent =
+      `${CONFIG.comps_count.toLocaleString()} listings scraped from Zameen, `
+      + `covering houses and flats across ${CONFIG.area_count} areas of Lahore. `
+      + `Plots, farm houses and portions are not covered, since they price on `
+      + `different logic. Installment-plan listings are excluded, because the `
+      + `figure quoted is a payment plan rather than a sale price.`;
+  } catch (e) {
+    console.error('config failed', e);
+  }
+}
+
+// ---------------------------------------------------------------- actions
+async function checkLink() {
+  const url = $('url').value.trim();
+  if (!url.includes('zameen.com')) {
+    $('out-link').innerHTML = message('Paste a zameen.com listing link.');
+    return;
+  }
+  $('out-link').innerHTML = `<p class="text-muted">Reading the listing…</p>`;
+  await withButton($('go'), 'Checking', async () => {
+    try {
+      const d = await callApi('check_url_json', [url]);
+      $('out-link').innerHTML = gallery(d.images) + card(d);
+    } catch (e) {
+      $('out-link').innerHTML = message('Could not reach the service. Try again in a moment.');
+      console.error(e);
+    }
+  });
+}
+
+async function checkDetails() {
+  const area = $('d-area').value;
+  if (!area) { $('out-details').innerHTML = message('Pick an area from the list.'); return; }
+  $('out-details').innerHTML = `<p class="text-muted">Looking up comparables…</p>`;
+  await withButton($('d-go'), 'Working', async () => {
+    try {
+      const d = await callApi('check_details_json', [
+        area, $('d-type').value, Number($('d-size').value),
+        $('d-beds').value ? Number($('d-beds').value) : null,
+        $('d-baths').value ? Number($('d-baths').value) : null,
+      ]);
+      $('out-details').innerHTML = card(d);
+    } catch (e) {
+      $('out-details').innerHTML = message('Could not reach the service. Try again in a moment.');
+      console.error(e);
+    }
+  });
+}
+
+async function runBrowse() {
+  $('out-browse').innerHTML = `<p class="text-muted">Fetching listings…</p>`;
+  await withButton($('b-go'), 'Working', async () => {
+    try {
+      const d = await callApi('browse_json', [$('b-pos').value, $('b-area').value]);
+      $('out-browse').innerHTML = browseRows(d);
+    } catch (e) {
+      $('out-browse').innerHTML = message('Could not reach the service. Try again in a moment.');
+      console.error(e);
+    }
+  });
+}
+
+// The area lists differ by direction: an area can have listings above its
+// typical price and none below, so offering both would create dead ends.
+$('b-pos').addEventListener('change', () => {
+  const above = $('b-pos').value.startsWith('Asking more');
+  fillSelect($('b-area'), above ? CONFIG.browse_above : CONFIG.browse_below, true);
+});
+
+// ---------------------------------------------------------------- tabs
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => {
+      b.classList.toggle('tab-on', b === btn);
+      b.classList.toggle('tab-off', b !== btn);
+    });
+    ['link', 'details', 'browse', 'about'].forEach(name => {
+      $('panel-' + name).classList.toggle('hidden', name !== btn.dataset.tab);
+    });
+  });
+});
+
+$('go').addEventListener('click', checkLink);
+$('url').addEventListener('keydown', e => { if (e.key === 'Enter') checkLink(); });
+$('d-go').addEventListener('click', checkDetails);
+$('b-go').addEventListener('click', runBrowse);
+
+loadConfig();
+</script>
+</body>
+</html>
